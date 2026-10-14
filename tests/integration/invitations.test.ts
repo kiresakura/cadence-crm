@@ -18,9 +18,17 @@ import {
   registerWithInvitation,
   revokeInvitation,
 } from "@/server/services/invitations";
+import { changeMemberRole, removeMember } from "@/server/services/members";
 import { listUserWorkspaces, switchWorkspace } from "@/server/services/workspaces";
 
-import { TEST_PASSWORD, createTestWorkspace, createUser, uid, type TestWorkspace } from "./helpers";
+import {
+  TEST_PASSWORD,
+  createTestWorkspace,
+  createUser,
+  joinThroughInvitation,
+  uid,
+  type TestWorkspace,
+} from "./helpers";
 
 function tokenOf(inviteUrl: string): string {
   const token = new URL(inviteUrl).pathname.split("/").pop();
@@ -349,5 +357,83 @@ describe("workspace invitations", () => {
     await switchWorkspace(session.id, invitee.id, ws.workspaceId);
     expect((await validateSessionToken(db, token))?.workspaceId).toBe(ws.workspaceId);
     await expect(login({ email: invitee.email, password: TEST_PASSWORD })).resolves.toBeDefined();
+  });
+
+  it("stops working when the inviter can no longer grant the role", async () => {
+    const team = await createTestWorkspace();
+    const coOwner = await createUser("Co-owner");
+    const coOwnerMembership = await joinThroughInvitation(team.owner, coOwner, "OWNER");
+    const asCoOwner = { userId: coOwner.id, workspaceId: team.workspaceId, role: "OWNER" as const };
+    const alt = await createUser("Second account");
+    const helper = await createUser("Helper");
+    const ownerLink = await createInvitation(asCoOwner, { email: alt.email, role: "OWNER" });
+    const memberLink = await createInvitation(asCoOwner, { email: helper.email, role: "MEMBER" });
+
+    // Demoted to admin: an owner link they made earlier must not make anyone an owner.
+    await changeMemberRole(team.owner, coOwnerMembership.id, { role: "ADMIN" });
+    await expect(acceptInvitation(alt.id, tokenOf(ownerLink.inviteUrl))).rejects.toThrow(
+      INVALID_INVITATION_MESSAGE,
+    );
+    expect(await findInvitation(tokenOf(memberLink.inviteUrl))).not.toBeNull();
+
+    // Removed: none of their links work any more.
+    await removeMember(team.owner, coOwnerMembership.id);
+    await expect(acceptInvitation(helper.id, tokenOf(memberLink.inviteUrl))).rejects.toThrow(
+      INVALID_INVITATION_MESSAGE,
+    );
+    expect(
+      await db.membership.count({
+        where: { workspaceId: team.workspaceId, userId: { in: [alt.id, helper.id] } },
+      }),
+    ).toBe(0);
+    expect((await listPendingInvitations(team.owner)).map((i) => i.email)).not.toContain(
+      helper.email,
+    );
+  });
+
+  it("keeps the current session until an invitation sign-up succeeds", async () => {
+    const someone = await createUser("Already signed in");
+    const current = await createSession(db, { userId: someone.id, workspaceId: null });
+    const email = `keep-${uid()}@example.com`;
+    const { inviteUrl } = await createInvitation(ws.owner, { email, role: "MEMBER" });
+
+    await expect(
+      registerWithInvitation(
+        { token: tokenOf(inviteUrl), name: "New", password: "short" },
+        { previousToken: current.token },
+      ),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(await validateSessionToken(db, current.token)).not.toBeNull();
+
+    await registerWithInvitation(
+      { token: tokenOf(inviteUrl), name: "New", password: "a-long-enough-password" },
+      { previousToken: current.token },
+    );
+    expect(await validateSessionToken(db, current.token)).toBeNull();
+  });
+
+  it("limits invitation sign-ups per address like ordinary sign-ups", async () => {
+    const from = `203.0.113.7-${uid()}`;
+    for (let n = 0; n < 10; n += 1) {
+      await registerUser(
+        {
+          name: "Burst",
+          email: `burst-${uid()}@example.com`,
+          password: "a-long-password",
+          workspaceName: "Burst",
+        },
+        { ip: from },
+      );
+    }
+    const { inviteUrl } = await createInvitation(ws.owner, {
+      email: `late-${uid()}@example.com`,
+      role: "MEMBER",
+    });
+    await expect(
+      registerWithInvitation(
+        { token: tokenOf(inviteUrl), name: "Late", password: "a-long-enough-password" },
+        { ip: from },
+      ),
+    ).rejects.toThrow(/Too many sign-ups/);
   });
 });

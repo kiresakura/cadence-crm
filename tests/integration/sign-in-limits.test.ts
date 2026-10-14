@@ -136,3 +136,24 @@ describe("registration limits", () => {
     ).rejects.toBeInstanceOf(ValidationError);
   });
 });
+
+describe("sign-in attempts that arrive together", () => {
+  it("are counted before the password check, so a burst cannot exceed the limit", async () => {
+    const user = await createUser("Burst target");
+    const from = ip();
+    const results = await Promise.allSettled(
+      Array.from({ length: 15 }, () =>
+        login({ email: user.email, password: "wrong-password" }, { ip: from }),
+      ),
+    );
+    const checked = results.filter(
+      (result) =>
+        result.status === "rejected" && /Invalid email or password/.test(String(result.reason)),
+    );
+    expect(checked.length).toBe(LOGIN_LIMITS.perEmailAndIp);
+    // A successful sign-in from another address does not use up the account's budget.
+    await expect(
+      login({ email: user.email, password: TEST_PASSWORD }, { ip: ip() }),
+    ).resolves.toMatchObject({ userId: user.id });
+  });
+});

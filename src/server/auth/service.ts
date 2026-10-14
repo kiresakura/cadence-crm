@@ -38,6 +38,13 @@ const loginFailures = {
 export const REGISTRATION_LIMIT = 10;
 const registrations = new RateLimiter(REGISTRATION_LIMIT, 60 * 60 * 1000);
 
+/** Counts a sign-up (public or through an invitation) against the client address. */
+export function assertSignUpAllowed(ip: string | null | undefined): void {
+  if (ip && !registrations.consume(ip).allowed) {
+    throw new AppError("BAD_REQUEST", "Too many sign-ups from your network. Try again later.");
+  }
+}
+
 export interface ClientInfo {
   /** Client address from `clientIpFrom`, or null when unknown. */
   ip?: string | null;
@@ -57,9 +64,7 @@ export async function registerUser(
   client: ClientInfo = {},
 ): Promise<SignedInSession> {
   const input = parseInput(registerSchema, rawInput);
-  if (client.ip && !registrations.consume(client.ip).allowed) {
-    throw new AppError("BAD_REQUEST", "Too many sign-ups from your network. Try again later.");
-  }
+  assertSignUpAllowed(client.ip);
   if (isDemoEmail(input.email)) {
     throw ValidationError.forField("email", "This email domain is reserved for demo accounts.");
   }
@@ -109,6 +114,9 @@ export async function login(rawInput: unknown, client: ClientInfo = {}): Promise
   if (counters.some(([limiter, key]) => !limiter.check(key).allowed)) {
     throw new AppError("BAD_REQUEST", TOO_MANY_SIGN_INS);
   }
+  // Count the attempt before the first await, so attempts sent at the same moment cannot all
+  // pass the check above; a successful sign-in gives the attempt back below.
+  for (const [limiter, key] of counters) limiter.hit(key);
 
   const user =
     isDemoEmail(input.email) && !demoAccountsEnabled()
@@ -120,11 +128,11 @@ export async function login(rawInput: unknown, client: ClientInfo = {}): Promise
     ? await verifyPassword(user.passwordHash, input.password)
     : (await verifyPassword(await getDummyHash(), input.password)) && false;
   if (!user || !valid) {
-    for (const [limiter, key] of counters) limiter.hit(key);
     throw new AppError("UNAUTHENTICATED", INVALID_CREDENTIALS);
   }
 
   loginFailures.pair.reset(counters[0]![1]);
+  for (const [limiter, key] of counters.slice(1)) limiter.release(key);
   if (client.previousToken) await deleteSessionByToken(db, client.previousToken);
   const membership = await db.membership.findFirst({
     where: { userId: user.id },

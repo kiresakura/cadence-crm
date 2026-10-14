@@ -6,6 +6,7 @@ import { ConflictError, ForbiddenError, ValidationError, parseInput } from "../e
 import { assertCan, type Ctx } from "../permissions";
 import { changeRoleSchema, removeMemberSchema } from "../validation/schemas";
 import { assertMemberRef, notFoundUnless } from "./guards";
+import { revokeInvitationsBy } from "./invitations";
 
 export async function listMembers(ctx: Ctx) {
   assertCan(ctx, "records:read");
@@ -52,6 +53,7 @@ export async function changeMemberRole(ctx: Ctx, membershipId: string, rawInput:
       where: { id: target.id },
       data: { role: input.role },
     });
+    await revokeInvitationsBy(tx, ctx.workspaceId, target.userId, updated.role);
     await recordAudit(tx, ctx, {
       action: "member.role_changed",
       entityType: "member",
@@ -111,6 +113,7 @@ export async function removeMember(
     };
 
     await tx.membership.delete({ where: { id: target.id } });
+    await revokeInvitationsBy(tx, ctx.workspaceId, target.userId, null);
     // Signed-in sessions lose access immediately: membership is checked on every request.
     await tx.session.updateMany({
       where: { userId: target.userId, workspaceId: ctx.workspaceId },

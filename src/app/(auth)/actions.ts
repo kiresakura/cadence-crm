@@ -108,9 +108,10 @@ export async function changePasswordAction(formData: FormData): Promise<ActionRe
 
 export async function registerWithInvitationAction(formData: FormData): Promise<ActionResult> {
   try {
-    const previous = await readSessionToken();
-    if (previous) await deleteSessionByToken(db, previous);
-    const session = await registerWithInvitation(formToObject(formData));
+    const session = await registerWithInvitation(formToObject(formData), {
+      ip: await getClientIp(),
+      previousToken: await readSessionToken(),
+    });
     await setSessionCookie(session.token, session.expiresAt);
   } catch (error) {
     return toActionError(error);

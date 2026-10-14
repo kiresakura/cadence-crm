@@ -4,12 +4,20 @@ import type { Role } from "@/generated/prisma/enums";
 
 import { recordAudit } from "../audit";
 import { hashPassword } from "../auth/password";
-import { createSession } from "../auth/session";
+import { assertSignUpAllowed, type ClientInfo } from "../auth/service";
+import { createSession, deleteSessionByToken } from "../auth/session";
 import { isValidTimeZone } from "../domain/tasks";
 import { db, type DbClient } from "../db";
 import { getAppUrl, isDemoEmail } from "../env";
-import { AppError, ConflictError, ForbiddenError, ValidationError, parseInput } from "../errors";
-import { assertCan, type Ctx } from "../permissions";
+import {
+  AppError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+  parseInput,
+} from "../errors";
+import { assertCan, can, type Ctx } from "../permissions";
 import { invitationRegisterSchema, invitationSchema } from "../validation/schemas";
 import { notFoundUnless } from "./guards";
 
@@ -61,7 +69,39 @@ async function findPending(client: DbClient, token: string, now = new Date()) {
   });
   if (!invitation || invitation.acceptedAt || invitation.revokedAt) return null;
   if (invitation.expiresAt.getTime() <= now.getTime()) return null;
+  // The inviter must still be allowed to grant this role: a link does not outlive the
+  // inviter's removal or demotion.
+  const inviter = await client.membership.findUnique({
+    where: {
+      workspaceId_userId: { workspaceId: invitation.workspaceId, userId: invitation.invitedById },
+    },
+    select: { role: true },
+  });
+  if (!inviter || !can(inviter.role, "members:manage")) return null;
+  if (invitation.role === "OWNER" && inviter.role !== "OWNER") return null;
   return invitation;
+}
+
+/** Retires the pending invitations someone can no longer grant (after removal or demotion). */
+export async function revokeInvitationsBy(
+  tx: DbClient,
+  workspaceId: string,
+  inviterId: string,
+  remainingRole: Role | null,
+) {
+  if (remainingRole === "OWNER") return;
+  // An admin keeps their links except owner invitations; anyone else loses all of them.
+  const stillInvites = remainingRole !== null && can(remainingRole, "members:manage");
+  await tx.invitation.updateMany({
+    where: {
+      workspaceId,
+      invitedById: inviterId,
+      acceptedAt: null,
+      revokedAt: null,
+      ...(stillInvites ? { role: "OWNER" as const } : {}),
+    },
+    data: { revokedAt: new Date() },
+  });
 }
 
 /**
@@ -168,7 +208,11 @@ export async function regenerateInvitation(
   await db.$transaction(async (tx) => {
     const invitation = await findPendingInWorkspace(tx, ctx, invitationId);
     assertCanGrant(ctx, invitation.role);
-    await tx.invitation.update({ where: { id: invitation.id }, data: { tokenHash, expiresAt } });
+    const updated = await tx.invitation.updateMany({
+      where: { id: invitation.id, acceptedAt: null, revokedAt: null },
+      data: { tokenHash, expiresAt },
+    });
+    if (updated.count !== 1) throw new NotFoundError("Invitation");
     await recordAudit(tx, ctx, {
       action: "invitation.regenerated",
       entityType: "invitation",
@@ -183,7 +227,11 @@ export async function revokeInvitation(ctx: Ctx, invitationId: string): Promise<
   assertCan(ctx, "members:manage");
   await db.$transaction(async (tx) => {
     const invitation = await findPendingInWorkspace(tx, ctx, invitationId);
-    await tx.invitation.update({ where: { id: invitation.id }, data: { revokedAt: new Date() } });
+    const revoked = await tx.invitation.updateMany({
+      where: { id: invitation.id, acceptedAt: null, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (revoked.count !== 1) throw new NotFoundError("Invitation");
     await recordAudit(tx, ctx, {
       action: "invitation.revoked",
       entityType: "invitation",
@@ -205,10 +253,24 @@ export async function findInvitation(token: string) {
   };
 }
 
-/** Marks the invitation used; fails if another request used or revoked it first. */
-async function claim(tx: DbClient, invitationId: string, userId: string, now: Date) {
+/**
+ * Marks the invitation used; fails if another request used, revoked or regenerated it first
+ * (the token that was checked must still be the current one).
+ */
+async function claim(
+  tx: DbClient,
+  invitation: { id: string; tokenHash: string },
+  userId: string,
+  now: Date,
+) {
   const claimed = await tx.invitation.updateMany({
-    where: { id: invitationId, acceptedAt: null, revokedAt: null, expiresAt: { gt: now } },
+    where: {
+      id: invitation.id,
+      tokenHash: invitation.tokenHash,
+      acceptedAt: null,
+      revokedAt: null,
+      expiresAt: { gt: now },
+    },
     data: { acceptedAt: now, acceptedById: userId },
   });
   if (claimed.count !== 1) throw invalidInvitation();
@@ -257,7 +319,7 @@ export async function acceptInvitation(
       select: { id: true },
     });
     if (existing) throw new ConflictError("You are already a member of this workspace.");
-    await claim(tx, invitation.id, userId, now);
+    await claim(tx, invitation, userId, now);
     await join(tx, invitation, userId);
     return { workspaceId: invitation.workspaceId };
   });
@@ -272,7 +334,16 @@ export async function declineInvitation(userId: string, token: string): Promise<
     if (user.email !== invitation.email) {
       throw new ForbiddenError("This invitation was sent to a different email address.");
     }
-    await tx.invitation.update({ where: { id: invitation.id }, data: { revokedAt: new Date() } });
+    const declined = await tx.invitation.updateMany({
+      where: {
+        id: invitation.id,
+        tokenHash: invitation.tokenHash,
+        acceptedAt: null,
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    });
+    if (declined.count !== 1) throw invalidInvitation();
     await recordAudit(
       tx,
       { userId, workspaceId: invitation.workspaceId, role: invitation.role },
@@ -290,13 +361,14 @@ export async function declineInvitation(userId: string, token: string): Promise<
  * Creates an account for the invited address and joins the workspace in one go. No workspace of
  * their own is created; the email always comes from the invitation, never from the form.
  */
-export async function registerWithInvitation(rawInput: unknown) {
+export async function registerWithInvitation(rawInput: unknown, client: ClientInfo = {}) {
   const token = (rawInput as { token?: unknown } | null)?.token;
   // Check the link before the form, so every bad link gets the same answer.
   if (typeof token !== "string" || !(await findPending(db, token.trim()))) {
     throw invalidInvitation();
   }
   const input = parseInput(invitationRegisterSchema, rawInput);
+  assertSignUpAllowed(client.ip);
   const passwordHash = await hashPassword(input.password);
   const timezone = input.timezone && isValidTimeZone(input.timezone) ? input.timezone : "UTC";
 
@@ -314,11 +386,12 @@ export async function registerWithInvitation(rawInput: unknown) {
     const user = await tx.user.create({
       data: { email: invitation.email, name: input.name, passwordHash, timezone },
     });
-    await claim(tx, invitation.id, user.id, now);
+    await claim(tx, invitation, user.id, now);
     await join(tx, invitation, user.id);
     return { userId: user.id, workspaceId: invitation.workspaceId };
   });
 
+  if (client.previousToken) await deleteSessionByToken(db, client.previousToken);
   const session = await createSession(db, { userId, workspaceId });
   return { ...session, userId, workspaceId };
 }

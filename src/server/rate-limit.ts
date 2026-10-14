@@ -44,6 +44,12 @@ export class RateLimiter {
     }
   }
 
+  /** Gives back one counted attempt, e.g. a reservation that turned out to succeed. */
+  release(key: string): void {
+    const entry = this.hits.get(key);
+    if (entry && entry.count > 0) entry.count -= 1;
+  }
+
   reset(key: string): void {
     this.hits.delete(key);
   }
