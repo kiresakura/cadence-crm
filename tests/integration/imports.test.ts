@@ -176,10 +176,10 @@ describe("importing a Chinese spreadsheet", () => {
     const csv = [
       "姓名,電子郵件,公司",
       "王小明,ming@example.com,台北商行",
-      "歐陽娜娜,nana@example.com,",
+      "歐陽靜文,nana@example.com,",
       "",
       "Cher,cher@example.com,",
-      "林 志玲,not-an-email,",
+      "林 雨晴,not-an-email,",
       "Ada Lovelace,ada@example.com,",
     ].join("\n");
 
@@ -205,7 +205,7 @@ describe("importing a Chinese spreadsheet", () => {
     expect(people).toEqual([
       { firstName: "Ada", lastName: "Lovelace" },
       { firstName: "小明", lastName: "王" },
-      { firstName: "娜娜", lastName: "歐陽" },
+      { firstName: "靜文", lastName: "歐陽" },
     ]);
   });
 

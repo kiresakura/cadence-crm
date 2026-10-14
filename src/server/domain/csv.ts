@@ -211,7 +211,7 @@ const COMPOUND_SURNAMES = new Set([
  * - Latin script: the last word is the last name ("Mary Ann Evans" -> "Mary Ann" + "Evans").
  * - Chinese, Japanese and Korean: the family name comes first. With a space, the first word is
  *   the family name ("山田 太郎"); without one, 2–4 Han characters are split after the first
- *   character, or after a known two-character family name ("歐陽娜娜" -> "歐陽" + "娜娜").
+ *   character, or after a known two-character family name ("歐陽靜文" -> "歐陽" + "靜文").
  */
 export function splitFullName(fullName: string): { firstName: string; lastName: string } | null {
   const name = fullName.trim();

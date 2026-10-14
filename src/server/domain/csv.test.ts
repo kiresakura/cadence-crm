@@ -158,8 +158,8 @@ describe("splitFullName", () => {
   it("puts the family name first for Chinese, Japanese and Korean names", () => {
     expect(splitFullName("王小明")).toEqual({ lastName: "王", firstName: "小明" });
     expect(splitFullName("王明")).toEqual({ lastName: "王", firstName: "明" });
-    expect(splitFullName("歐陽娜娜")).toEqual({ lastName: "歐陽", firstName: "娜娜" });
-    expect(splitFullName("欧阳娜娜")).toEqual({ lastName: "欧阳", firstName: "娜娜" });
+    expect(splitFullName("歐陽靜文")).toEqual({ lastName: "歐陽", firstName: "靜文" });
+    expect(splitFullName("欧阳静文")).toEqual({ lastName: "欧阳", firstName: "静文" });
     expect(splitFullName("諸葛亮")).toEqual({ lastName: "諸葛", firstName: "亮" });
     expect(splitFullName("張簡美玲")).toEqual({ lastName: "張簡", firstName: "美玲" });
     expect(splitFullName("范姜孟")).toEqual({ lastName: "范姜", firstName: "孟" });
