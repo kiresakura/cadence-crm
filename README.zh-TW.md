@@ -20,13 +20,15 @@
 - **操作紀錄**：新增、修改、刪除、合併、換階段、成員異動都有欄位層級的差異紀錄，管理員以上可查看。
 - **體驗**：響應式版面、可鍵盤操作、空狀態、載入骨架、操作提示（toast）與欄位錯誤訊息。
 
-| 商機看板                                           | 聯絡人                                           |
-| -------------------------------------------------- | ------------------------------------------------ |
-| ![商機看板](docs/screenshots/deals-board.png)      | ![聯絡人](docs/screenshots/contacts-list.png)    |
-| **聯絡人詳情**                                     | **商機詳情**                                     |
-| ![聯絡人詳情](docs/screenshots/contact-detail.png) | ![商機詳情](docs/screenshots/deal-detail.png)    |
-| **CSV 匯入**                                       | **設定**                                         |
-| ![CSV 匯入](docs/screenshots/import.png)           | ![設定](docs/screenshots/settings-pipelines.png) |
+| 商機看板                                           | 聯絡人                                        |
+| -------------------------------------------------- | --------------------------------------------- |
+| ![商機看板](docs/screenshots/deals-board.png)      | ![聯絡人](docs/screenshots/contacts-list.png) |
+| **聯絡人詳情**                                     | **商機詳情**                                  |
+| ![聯絡人詳情](docs/screenshots/contact-detail.png) | ![商機詳情](docs/screenshots/deal-detail.png) |
+| **CSV 匯入**                                       | **重複合併**                                  |
+| ![CSV 匯入](docs/screenshots/import.png)           | ![重複合併](docs/screenshots/duplicates.png)  |
+| **管線設定**                                       |                                               |
+| ![設定](docs/screenshots/settings-pipelines.png)   |                                               |
 
 ## 技術棧
 

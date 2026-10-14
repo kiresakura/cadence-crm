@@ -20,13 +20,15 @@
 - **Audit log** — every create, update, delete, merge, stage change and membership change with a field-level diff; visible to admins and owners.
 - **Polish** — responsive layout, keyboard-accessible controls, empty states, loading skeletons, toasts and inline form errors.
 
-| Deals board                                            | Contacts                                             |
-| ------------------------------------------------------ | ---------------------------------------------------- |
-| ![Deals board](docs/screenshots/deals-board.png)       | ![Contacts](docs/screenshots/contacts-list.png)      |
-| **Contact detail**                                     | **Deal detail**                                      |
-| ![Contact detail](docs/screenshots/contact-detail.png) | ![Deal detail](docs/screenshots/deal-detail.png)     |
-| **CSV import**                                         | **Settings**                                         |
-| ![CSV import](docs/screenshots/import.png)             | ![Settings](docs/screenshots/settings-pipelines.png) |
+| Deals board                                            | Contacts                                            |
+| ------------------------------------------------------ | --------------------------------------------------- |
+| ![Deals board](docs/screenshots/deals-board.png)       | ![Contacts](docs/screenshots/contacts-list.png)     |
+| **Contact detail**                                     | **Deal detail**                                     |
+| ![Contact detail](docs/screenshots/contact-detail.png) | ![Deal detail](docs/screenshots/deal-detail.png)    |
+| **CSV import**                                         | **Duplicate merge**                                 |
+| ![CSV import](docs/screenshots/import.png)             | ![Duplicate merge](docs/screenshots/duplicates.png) |
+| **Pipeline settings**                                  |                                                     |
+| ![Settings](docs/screenshots/settings-pipelines.png)   |                                                     |
 
 ## Tech stack
 
