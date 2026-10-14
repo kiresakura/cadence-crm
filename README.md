@@ -17,6 +17,7 @@
 - **Dashboard** — open pipeline by stage, weighted forecast (amount × stage probability), 90-day win rate, deals expected to close this month, overdue tasks, won revenue for six months and recent activity.
 - **CSV** — contact import with column mapping, preview, de-duplication by email and a row-by-row error report; contact and deal export that respects the current filters, with spreadsheet formula-injection protection.
 - **Settings** — pipelines and stages (rename, probability, type, reorder), tag vocabulary, custom field definitions (text, number, date, select, yes/no — validated on every save), members and roles.
+- **Account** — change your name, time zone and password; changing the password signs out your other sessions.
 - **Audit log** — every create, update, delete, merge, stage change and membership change with a field-level diff; visible to admins and owners.
 - **Polish** — responsive layout, keyboard-accessible controls, empty states, loading skeletons, toasts and inline form errors.
 
@@ -146,7 +147,7 @@ npm run screenshots    # regenerate docs/screenshots from the demo data
 
 - **146 Vitest tests** — unit tests for pure rules (permissions matrix, secret guard, stage transitions, custom field validation, CSV parsing and escaping, dashboard math, time zones) and integration tests that run the real services against PostgreSQL: cross-workspace isolation, all four roles, duplicate merge, stage rules, CSV import and export, dashboard figures, sessions and members.
 - **Line coverage of `src/server`: 93.6%** (the thin Next.js adapters in `src/server/next` are exercised by the Playwright suite instead).
-- **7 Playwright tests** — sign in → create contact → create deal → drag it to the next stage → dashboard forecast changes; the lost-reason dialog via the keyboard-friendly "Move to" menu; a viewer sees no edit controls and the API rejects their writes with 403 (exports still work); unauthenticated API calls get 401; registration; creating and switching workspaces; inviting a member who then signs in with the temporary password.
+- **7 Playwright tests** — sign in → create contact → create deal → drag it to the next stage → dashboard forecast changes; the lost-reason dialog via the keyboard-friendly "Move to" menu; a viewer sees no edit controls and the API rejects their writes with 403 (exports still work); unauthenticated API calls get 401; registration; creating and switching workspaces; inviting a member who signs in with the temporary password and replaces it.
 
 CI runs lint, format check, typecheck, unit, integration (PostgreSQL service), build, E2E and a Docker build on every push.
 

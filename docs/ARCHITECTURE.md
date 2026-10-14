@@ -56,7 +56,7 @@ Each service function calls `assertCan(ctx, permission)` before parsing its inpu
 ## Authentication
 
 - Passwords are hashed with Argon2id (19 MiB, 2 iterations). Unknown emails are verified against a dummy hash so response times do not reveal which accounts exist.
-- Sessions live in the `Session` table. The cookie holds the raw token; the table stores only its HMAC, so a database leak does not yield usable sessions. Sessions last 30 days and are deleted on sign-out.
+- Sessions live in the `Session` table. The cookie holds the raw token; the table stores only its HMAC, so a database leak does not yield usable sessions. Sessions last 30 days and are deleted on sign-out; changing the password deletes every other session of that user.
 - Cookies are `httpOnly`, `SameSite=Lax`, `path=/`, and `Secure` in production or whenever `APP_URL` is https.
 - Server Actions get Next.js' built-in origin check; the JSON API rejects cross-site writes by comparing `Origin` with the host.
 - Sign-in attempts are rate limited per email (10 per 15 minutes, in memory).
