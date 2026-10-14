@@ -29,7 +29,7 @@ export function LoginForm({
 
   return (
     <div className="grid gap-6">
-      <form ref={formRef} onSubmit={onSubmit} className="grid gap-4" noValidate>
+      <form ref={formRef} method="post" onSubmit={onSubmit} className="grid gap-4" noValidate>
         <FormError message={formError} />
         {next ? <input type="hidden" name="next" value={next} /> : null}
         <Field label="Email" htmlFor="email" error={errorFor("email")}>
@@ -38,6 +38,7 @@ export function LoginForm({
             name="email"
             type="email"
             autoComplete="email"
+            maxLength={254}
             required
             {...errorProps("email", errorFor("email"))}
           />

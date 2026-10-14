@@ -19,7 +19,7 @@ export function RegisterForm() {
   }, []);
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-4" noValidate>
+    <form method="post" onSubmit={onSubmit} className="grid gap-4" noValidate>
       <FormError message={formError} />
       <input ref={timezoneRef} type="hidden" name="timezone" />
       <Field label="Your name" htmlFor="name" error={errorFor("name")}>
@@ -37,6 +37,7 @@ export function RegisterForm() {
           name="email"
           type="email"
           autoComplete="email"
+          maxLength={254}
           required
           {...errorProps("email", errorFor("email"))}
         />

@@ -1,7 +1,13 @@
 import type { z } from "zod";
 
 export type ErrorCode =
-  "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "BAD_REQUEST";
+  | "UNAUTHENTICATED"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | "VALIDATION_FAILED"
+  | "CONFLICT"
+  | "BAD_REQUEST"
+  | "PAYLOAD_TOO_LARGE";
 
 const STATUS_BY_CODE: Record<ErrorCode, number> = {
   UNAUTHENTICATED: 401,
@@ -10,6 +16,7 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   VALIDATION_FAILED: 422,
   CONFLICT: 409,
   BAD_REQUEST: 400,
+  PAYLOAD_TOO_LARGE: 413,
 };
 
 export type FieldErrors = Record<string, string[]>;

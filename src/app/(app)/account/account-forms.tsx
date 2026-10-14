@@ -22,7 +22,7 @@ export function ProfileForm({
     onSuccess: () => router.refresh(),
   });
   return (
-    <form onSubmit={onSubmit} className="grid gap-4" noValidate>
+    <form method="post" onSubmit={onSubmit} className="grid gap-4" noValidate>
       <FormError message={formError} />
       <Field label="Name" htmlFor="profile-name" error={errorFor("name")}>
         <Input
@@ -60,7 +60,7 @@ export function PasswordForm() {
     onSuccess: (_data, form) => form.reset(),
   });
   return (
-    <form onSubmit={onSubmit} className="grid gap-4" noValidate>
+    <form method="post" onSubmit={onSubmit} className="grid gap-4" noValidate>
       <FormError message={formError} />
       <Field
         label="Current password"

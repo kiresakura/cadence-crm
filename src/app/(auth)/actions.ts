@@ -10,6 +10,7 @@ import { db } from "@/server/db";
 import { toActionError } from "@/server/next/action";
 import {
   clearSessionCookie,
+  getClientIp,
   getRequestContext,
   readSessionToken,
   setSessionCookie,
@@ -25,7 +26,11 @@ import { createWorkspace, switchWorkspace } from "@/server/services/workspaces";
 
 export async function loginAction(formData: FormData): Promise<ActionResult> {
   try {
-    const session = await login(formToObject(formData));
+    // A session the browser already holds is revoked, not left valid next to the new one.
+    const session = await login(formToObject(formData), {
+      ip: await getClientIp(),
+      previousToken: await readSessionToken(),
+    });
     await setSessionCookie(session.token, session.expiresAt);
   } catch (error) {
     return toActionError(error);
@@ -35,7 +40,10 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
 
 export async function registerAction(formData: FormData): Promise<ActionResult> {
   try {
-    const session = await registerUser(formToObject(formData));
+    const session = await registerUser(formToObject(formData), {
+      ip: await getClientIp(),
+      previousToken: await readSessionToken(),
+    });
     await setSessionCookie(session.token, session.expiresAt);
   } catch (error) {
     return toActionError(error);
@@ -100,6 +108,8 @@ export async function changePasswordAction(formData: FormData): Promise<ActionRe
 
 export async function registerWithInvitationAction(formData: FormData): Promise<ActionResult> {
   try {
+    const previous = await readSessionToken();
+    if (previous) await deleteSessionByToken(db, previous);
     const session = await registerWithInvitation(formToObject(formData));
     await setSessionCookie(session.token, session.expiresAt);
   } catch (error) {

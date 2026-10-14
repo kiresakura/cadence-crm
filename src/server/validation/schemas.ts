@@ -31,6 +31,7 @@ import {
 const email = z
   .string({ error: "Email is required." })
   .trim()
+  .max(254, "Email is too long.")
   .toLowerCase()
   .pipe(z.email("Enter a valid email address."));
 

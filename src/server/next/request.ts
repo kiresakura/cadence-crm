@@ -1,10 +1,11 @@
 import "server-only";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
 import { setSessionWorkspace, validateSessionToken, type SessionUser } from "../auth/session";
+import { clientIpFrom } from "../client-ip";
 import { db } from "../db";
 import { shouldUseSecureCookies } from "../env";
 import type { Ctx } from "../permissions";
@@ -30,6 +31,11 @@ export async function clearSessionCookie(): Promise<void> {
 export async function readSessionToken(): Promise<string | null> {
   const store = await cookies();
   return store.get(SESSION_COOKIE)?.value ?? null;
+}
+
+/** The caller's address when a trusted proxy reports it (see `clientIpFrom`). */
+export async function getClientIp(): Promise<string | null> {
+  return clientIpFrom(await headers());
 }
 
 export interface WorkspaceSummary {

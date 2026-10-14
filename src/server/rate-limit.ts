@@ -24,6 +24,26 @@ export class RateLimiter {
       : { allowed: true, retryAfterMs: 0 };
   }
 
+  /** Reports whether another attempt is allowed, without counting one. */
+  check(key: string, now = Date.now()): { allowed: boolean; retryAfterMs: number } {
+    const entry = this.hits.get(key);
+    if (!entry || entry.resetAt <= now || entry.count < this.limit) {
+      return { allowed: true, retryAfterMs: 0 };
+    }
+    return { allowed: false, retryAfterMs: entry.resetAt - now };
+  }
+
+  /** Counts one attempt (for example a failed sign-in). */
+  hit(key: string, now = Date.now()): void {
+    const entry = this.hits.get(key);
+    if (!entry || entry.resetAt <= now) {
+      this.hits.set(key, { count: 1, resetAt: now + this.windowMs });
+      this.prune(now);
+    } else {
+      entry.count += 1;
+    }
+  }
+
   reset(key: string): void {
     this.hits.delete(key);
   }

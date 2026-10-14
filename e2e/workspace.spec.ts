@@ -115,6 +115,9 @@ test("an existing user signs in from the invitation link and accepts", async ({
 
   // The invitation is no longer pending and the person is now a member.
   await page.reload();
-  await expect(page.getByText("Pending invitations")).toHaveCount(0);
-  await expect(page.getByText(email)).toBeVisible();
+  // Listed once, as a member, and no longer among the pending invitations.
+  await expect(page.getByText(email)).toHaveCount(1);
+  await expect(page.getByRole("combobox", { name: "Role for Existing Person" })).toHaveValue(
+    "MEMBER",
+  );
 });

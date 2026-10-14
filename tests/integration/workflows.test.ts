@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { login, loginLimiter, registerUser } from "@/server/auth/service";
+import { login, registerUser } from "@/server/auth/service";
 import { createSession, deleteSessionByToken, validateSessionToken } from "@/server/auth/session";
 import { db } from "@/server/db";
 import {
@@ -98,7 +98,6 @@ describe("registration and sign-in", () => {
       await expect(login({ email, password: "bad" })).rejects.toThrow("Invalid email or password.");
     }
     await expect(login({ email, password: "bad" })).rejects.toThrow(/Too many/);
-    loginLimiter.reset(email);
   });
 
   it("rejects demo accounts in production", async () => {

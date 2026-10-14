@@ -48,9 +48,32 @@ export function withApi<P>(
   };
 }
 
+export const MAX_JSON_BYTES = 1024 * 1024;
+
+function tooLarge(): AppError {
+  return new AppError("PAYLOAD_TOO_LARGE", "Request body is larger than 1 MB.");
+}
+
+/** Reads a JSON body of at most 1 MB; larger bodies get 413 without being read in full. */
 export async function readJson(request: NextRequest): Promise<unknown> {
+  if (Number(request.headers.get("content-length") ?? 0) > MAX_JSON_BYTES) throw tooLarge();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  if (request.body) {
+    const reader = request.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_JSON_BYTES) {
+        await reader.cancel();
+        throw tooLarge();
+      }
+      chunks.push(value);
+    }
+  }
   try {
-    return await request.json();
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
   } catch {
     throw new AppError("BAD_REQUEST", "Request body must be valid JSON.");
   }

@@ -60,3 +60,13 @@ test("the nonce changes on every response", async ({ request }) => {
   expect(first).toBeTruthy();
   expect(await nonceOf()).not.toBe(first);
 });
+
+test("the JSON API refuses bodies over 1 MB with 413", async ({ page }) => {
+  await signIn(page, "owner@demo.local");
+  const response = await page.request.post("/api/contacts", {
+    headers: { "content-type": "application/json" },
+    data: JSON.stringify({ firstName: "Big", lastName: "Body", notes: "x".repeat(1_100_000) }),
+  });
+  expect(response.status()).toBe(413);
+  expect((await response.json()).error.code).toBe("PAYLOAD_TOO_LARGE");
+});

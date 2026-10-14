@@ -12,12 +12,38 @@ import {
   registerSchema,
 } from "../validation/schemas";
 import { getDummyHash, hashPassword, verifyPassword } from "./password";
-import { createSession } from "./session";
+import { createSession, deleteSessionByToken } from "./session";
 
 const INVALID_CREDENTIALS = "Invalid email or password.";
+const TOO_MANY_SIGN_INS = "Too many sign-in attempts. Try again in a few minutes.";
 
-// 10 attempts per email per 15 minutes.
-export const loginLimiter = new RateLimiter(10, 15 * 60 * 1000);
+/**
+ * Failed sign-ins allowed per 15 minutes, counted three ways:
+ * - per email and client address: someone guessing at one account from one place;
+ * - per client address across accounts: one address trying a password on many accounts;
+ * - per email across addresses, set higher: guesses spread over many addresses.
+ * Failures from other addresses therefore cannot lock a user out of their own address before
+ * the higher per-email limit. Without a known client address (see `clientIpFrom`), only the
+ * per-email limits apply, and the stricter one of them counts every failure.
+ */
+export const LOGIN_LIMITS = { perEmailAndIp: 10, perIp: 30, perEmail: 50 } as const;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const loginFailures = {
+  pair: new RateLimiter(LOGIN_LIMITS.perEmailAndIp, LOGIN_WINDOW_MS),
+  ip: new RateLimiter(LOGIN_LIMITS.perIp, LOGIN_WINDOW_MS),
+  email: new RateLimiter(LOGIN_LIMITS.perEmail, LOGIN_WINDOW_MS),
+};
+
+/** Sign-ups per client address per hour. */
+export const REGISTRATION_LIMIT = 10;
+const registrations = new RateLimiter(REGISTRATION_LIMIT, 60 * 60 * 1000);
+
+export interface ClientInfo {
+  /** Client address from `clientIpFrom`, or null when unknown. */
+  ip?: string | null;
+  /** Session token the browser already holds; it is revoked when a new session starts. */
+  previousToken?: string | null;
+}
 
 export interface SignedInSession {
   token: string;
@@ -26,8 +52,14 @@ export interface SignedInSession {
   workspaceId: string | null;
 }
 
-export async function registerUser(rawInput: unknown): Promise<SignedInSession> {
+export async function registerUser(
+  rawInput: unknown,
+  client: ClientInfo = {},
+): Promise<SignedInSession> {
   const input = parseInput(registerSchema, rawInput);
+  if (client.ip && !registrations.consume(client.ip).allowed) {
+    throw new AppError("BAD_REQUEST", "Too many sign-ups from your network. Try again later.");
+  }
   if (isDemoEmail(input.email)) {
     throw ValidationError.forField("email", "This email domain is reserved for demo accounts.");
   }
@@ -61,15 +93,21 @@ export async function registerUser(rawInput: unknown): Promise<SignedInSession> 
     return { user, workspace };
   });
 
+  if (client.previousToken) await deleteSessionByToken(db, client.previousToken);
   const session = await createSession(db, { userId: user.id, workspaceId: workspace.id });
   return { ...session, userId: user.id, workspaceId: workspace.id };
 }
 
-export async function login(rawInput: unknown): Promise<SignedInSession> {
+export async function login(rawInput: unknown, client: ClientInfo = {}): Promise<SignedInSession> {
   const input = parseInput(loginSchema, rawInput);
-
-  if (!loginLimiter.consume(input.email).allowed) {
-    throw new AppError("BAD_REQUEST", "Too many sign-in attempts. Try again in a few minutes.");
+  const ip = client.ip ?? null;
+  const counters: Array<[RateLimiter, string]> = [
+    [loginFailures.pair, `${input.email}|${ip ?? "unknown"}`],
+    [loginFailures.email, input.email],
+  ];
+  if (ip) counters.push([loginFailures.ip, ip]);
+  if (counters.some(([limiter, key]) => !limiter.check(key).allowed)) {
+    throw new AppError("BAD_REQUEST", TOO_MANY_SIGN_INS);
   }
 
   const user =
@@ -82,10 +120,12 @@ export async function login(rawInput: unknown): Promise<SignedInSession> {
     ? await verifyPassword(user.passwordHash, input.password)
     : (await verifyPassword(await getDummyHash(), input.password)) && false;
   if (!user || !valid) {
+    for (const [limiter, key] of counters) limiter.hit(key);
     throw new AppError("UNAUTHENTICATED", INVALID_CREDENTIALS);
   }
 
-  loginLimiter.reset(input.email);
+  loginFailures.pair.reset(counters[0]![1]);
+  if (client.previousToken) await deleteSessionByToken(db, client.previousToken);
   const membership = await db.membership.findFirst({
     where: { userId: user.id },
     orderBy: { createdAt: "asc" },
