@@ -35,7 +35,8 @@ export default async function DuplicatesPage() {
         <div className="grid gap-6">
           {groups.map((group) => (
             <MergeGroup
-              key={group.key}
+              // Remount when the members change, so choices for deleted contacts are not kept.
+              key={`${group.key}:${group.contacts.map((contact) => contact.id).join()}`}
               groupKey={group.key}
               reasons={group.reasons}
               contacts={group.contacts.map((contact) => ({
