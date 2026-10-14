@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { runAction } from "@/server/next/action";
 import { createContact, deleteContact, updateContact } from "@/server/services/contacts";
-import { mergeContacts } from "@/server/services/duplicates";
+import { mergeDuplicateGroup } from "@/server/services/duplicates";
 import { importContacts, previewContactImport, readImportUpload } from "@/server/services/imports";
 import { formToObject } from "@/server/validation/common";
 
@@ -38,9 +38,13 @@ export async function deleteContactAction(id: string) {
   return result;
 }
 
-export async function mergeContactsAction(keepId: string, mergeId: string) {
+export async function mergeDuplicateGroupAction(input: {
+  key: string;
+  keepId: string;
+  mergeIds: string[];
+}) {
   const result = await runAction(async ({ ctx }) => {
-    const contact = await mergeContacts(ctx, keepId, mergeId);
+    const contact = await mergeDuplicateGroup(ctx, input);
     return { id: contact.id };
   });
   if (result.ok) revalidateContacts();

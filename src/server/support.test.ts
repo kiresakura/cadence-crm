@@ -88,14 +88,28 @@ describe("rate limiter", () => {
 });
 
 describe("groupDuplicates", () => {
-  it("groups by shared email or phone, transitively", () => {
+  it("groups by one shared email or phone without chaining groups together", () => {
+    // A and B share a phone, B and C share an email: two groups, never A with C.
     const groups = groupDuplicates([
-      { id: "a", email: "ada@example.com", phoneNormalized: null },
-      { id: "b", email: "ADA@example.com", phoneNormalized: "15550100" },
-      { id: "c", email: null, phoneNormalized: "15550100" },
+      { id: "a", email: "a@example.com", phoneNormalized: "15550100" },
+      { id: "b", email: "shared@example.com", phoneNormalized: "15550100" },
+      { id: "c", email: "SHARED@example.com", phoneNormalized: null },
       { id: "d", email: "solo@example.com", phoneNormalized: "999999999" },
     ]);
-    expect(groups).toEqual([{ ids: ["a", "b", "c"], reasons: ["email", "phone"] }]);
+    expect(groups).toEqual([
+      { key: "email:shared@example.com", ids: ["b", "c"], reasons: ["email"] },
+      { key: "phone:15550100", ids: ["a", "b"], reasons: ["phone"] },
+    ]);
+    expect(groups.some((group) => group.ids.includes("a") && group.ids.includes("c"))).toBe(false);
+  });
+
+  it("shows people who share both an email and a phone once", () => {
+    expect(
+      groupDuplicates([
+        { id: "a", email: "x@example.com", phoneNormalized: "1555" },
+        { id: "b", email: "X@example.com", phoneNormalized: "1555" },
+      ]),
+    ).toEqual([{ key: "email:x@example.com", ids: ["a", "b"], reasons: ["email", "phone"] }]);
   });
 
   it("returns nothing when there are no duplicates", () => {

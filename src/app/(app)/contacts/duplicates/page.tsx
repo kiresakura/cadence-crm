@@ -35,7 +35,8 @@ export default async function DuplicatesPage() {
         <div className="grid gap-6">
           {groups.map((group) => (
             <MergeGroup
-              key={group.contacts.map((contact) => contact.id).join()}
+              key={group.key}
+              groupKey={group.key}
               reasons={group.reasons}
               contacts={group.contacts.map((contact) => ({
                 id: contact.id,
