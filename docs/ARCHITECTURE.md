@@ -27,6 +27,24 @@ Dependencies only point downwards. The domain layer is pure TypeScript and is un
 
 Pages call `requirePageContext()` (redirects to sign-in), Server Actions use `runAction()` and route handlers use `withApi()`. The two wrappers turn expected errors (`AppError` subclasses) into a typed result or a JSON error with the right status code (401, 403, 404, 409, 422) and log anything unexpected without leaking details.
 
+## HTTP API
+
+The UI uses Server Actions; these route handlers exist for scripts, exports and tests. They use the same session cookie and the same services, so roles and tenancy apply identically. Errors are JSON: `{ "error": { "code", "message", "fieldErrors" } }`.
+
+| Method and path             | Purpose                                                                                                         | Minimum role |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------ |
+| `GET /api/health`           | Liveness and database check (no session needed)                                                                 | —            |
+| `GET /api/contacts`         | List contacts; accepts the contacts page filters (`q`, `owner`, `lifecycle`, `tag`, `sort`, `page`, `pageSize`) | Viewer       |
+| `POST /api/contacts`        | Create a contact                                                                                                | Member       |
+| `GET /api/contacts/:id`     | Contact with company, tags and deals                                                                            | Viewer       |
+| `PATCH /api/contacts/:id`   | Partial update, validated as a whole                                                                            | Member       |
+| `DELETE /api/contacts/:id`  | Delete a contact                                                                                                | Member       |
+| `POST /api/deals/:id/stage` | Move a deal: `{ "stageId", "lostReason"? }`                                                                     | Member       |
+| `GET /api/export/contacts`  | CSV export with the list filters                                                                                | Viewer       |
+| `GET /api/export/deals`     | CSV export with the deal list filters                                                                           | Viewer       |
+
+A public API with API keys is planned for version 2.
+
 ## Multi-tenancy
 
 Every business table has a `workspaceId` column. Isolation is enforced in one place, the service layer:
