@@ -15,26 +15,19 @@ export default async function NewDealPage({ searchParams }: PageProps<"/deals/ne
   const { ctx, workspace } = await requirePageContext();
   if (!can(ctx.role, "records:write")) redirect("/deals");
   const params = await searchParams;
-  const data = await loadDealFormData(ctx);
-  const pipeline = data.pipelines[0];
-  const pick = (key: string, options: Array<{ id: string }>) => {
-    const value = params[key];
-    return typeof value === "string" && options.some((option) => option.id === value)
-      ? value
-      : null;
-  };
+  const requested = (key: string) => (typeof params[key] === "string" ? params[key] : null);
   // Pre-fill the company from the chosen contact when only the contact was given.
-  const contactId = pick("contactId", data.contacts);
-  const companyId =
-    pick("companyId", data.companies) ??
-    (contactId
-      ? ((
-          await db.contact.findFirst({
-            where: { id: contactId, workspaceId: ctx.workspaceId },
-            select: { companyId: true },
-          })
-        )?.companyId ?? null)
-      : null);
+  const contact = requested("contactId")
+    ? await db.contact.findFirst({
+        where: { id: requested("contactId") as string, workspaceId: ctx.workspaceId },
+        select: { id: true, companyId: true },
+      })
+    : null;
+  const data = await loadDealFormData(ctx, {
+    companyId: requested("companyId") ?? contact?.companyId ?? null,
+    primaryContactId: contact?.id ?? null,
+  });
+  const pipeline = data.pipelines[0];
 
   return (
     <>
@@ -47,8 +40,8 @@ export default async function NewDealPage({ searchParams }: PageProps<"/deals/ne
           currency: workspace.currency,
           pipelineId: pipeline?.id ?? "",
           stageId: pipeline?.stages[0]?.id ?? "",
-          companyId,
-          primaryContactId: contactId,
+          companyId: data.company?.id ?? null,
+          primaryContactId: data.primaryContact?.id ?? null,
           ownerId: ctx.userId,
           expectedCloseDate: null,
           lostReason: null,

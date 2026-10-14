@@ -23,7 +23,9 @@ test("an owner adds a contact and a deal, moves it on the board and sees the for
 
   // Create a deal for that contact from the contact page.
   await page.getByRole("link", { name: "New deal" }).click();
-  await expect(page.getByLabel("Primary contact")).toHaveValue(/.+/);
+  await expect(page.getByRole("combobox", { name: "Primary contact" })).toHaveValue(
+    `Nadia Larkfield ${suffix}`,
+  );
   await page.getByLabel("Title").fill(dealTitle);
   await page.getByLabel("Amount").fill("10000");
   await expect(page.getByLabel("Stage")).toHaveValue(/.+/);

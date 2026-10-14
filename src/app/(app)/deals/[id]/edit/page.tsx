@@ -20,7 +20,7 @@ export default async function EditDealPage({ params }: PageProps<"/deals/[id]/ed
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
-  const data = await loadDealFormData(ctx);
+  const data = await loadDealFormData(ctx, deal);
   return (
     <>
       <PageHeader title={`Edit ${deal.title}`} backHref={`/deals/${id}`} backLabel="Back to deal" />

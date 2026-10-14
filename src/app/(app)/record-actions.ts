@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { runAction } from "@/server/next/action";
 import { deleteActivity, logActivity } from "@/server/services/activities";
+import { searchCompanyOptions, searchContactOptions } from "@/server/services/record-options";
 import { createTask, deleteTask, setTaskCompleted, updateTask } from "@/server/services/tasks";
 import { formToObject } from "@/server/validation/common";
 
@@ -56,4 +57,13 @@ export async function deleteTaskAction(id: string) {
   const result = await runAction(async ({ ctx }) => deleteTask(ctx, id));
   if (result.ok) revalidateRecords();
   return result;
+}
+
+/** Server-side search for the contact and company pickers (debounced by the client). */
+export async function searchContactOptionsAction(query: string, selectedId: string | null) {
+  return runAction(({ ctx }) => searchContactOptions(ctx, query, selectedId));
+}
+
+export async function searchCompanyOptionsAction(query: string, selectedId: string | null) {
+  return runAction(({ ctx }) => searchCompanyOptions(ctx, query, selectedId));
 }

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { createDealAction, updateDealAction } from "@/app/(app)/deals/actions";
+import { searchCompanyOptionsAction, searchContactOptionsAction } from "@/app/(app)/record-actions";
 import { Field, FormError, NativeSelect, SubmitButton, errorProps } from "@/components/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import type { StageType } from "@/generated/prisma/enums";
 import { useActionForm } from "@/lib/use-action-form";
 
 import { CustomFieldInputs, type FieldDefinitionView } from "./custom-fields";
+import { RecordCombobox, type RecordOption } from "./record-combobox";
 
 export interface DealFormValues {
   title: string;
@@ -27,6 +29,10 @@ export interface DealFormValues {
   customFields: Record<string, unknown>;
 }
 
+function comboboxErrorProps(id: string, error?: string) {
+  return error ? { invalid: true, describedBy: `${id}-error` } : {};
+}
+
 export interface PipelineOption {
   id: string;
   name: string;
@@ -37,16 +43,17 @@ export function DealForm({
   dealId,
   values,
   pipelines,
-  companies,
-  contacts,
+  company,
+  primaryContact,
   members,
   fields,
 }: {
   dealId?: string;
   values: DealFormValues;
   pipelines: PipelineOption[];
-  companies: Array<{ id: string; label: string }>;
-  contacts: Array<{ id: string; label: string }>;
+  /** Currently linked records, shown in the pickers. */
+  company: RecordOption | null;
+  primaryContact: RecordOption | null;
   members: Array<{ id: string; label: string }>;
   fields: FieldDefinitionView[];
 }) {
@@ -165,32 +172,30 @@ export function DealForm({
           </Field>
         ) : null}
         <Field label="Company" htmlFor="companyId" error={errorFor("companyId")}>
-          <NativeSelect id="companyId" name="companyId" defaultValue={values.companyId ?? ""}>
-            <option value="">No company</option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.label}
-              </option>
-            ))}
-          </NativeSelect>
+          <RecordCombobox
+            id="companyId"
+            name="companyId"
+            label="Company"
+            initial={company}
+            search={searchCompanyOptionsAction}
+            placeholder="Search companies…"
+            {...comboboxErrorProps("companyId", errorFor("companyId"))}
+          />
         </Field>
         <Field
           label="Primary contact"
           htmlFor="primaryContactId"
           error={errorFor("primaryContactId")}
         >
-          <NativeSelect
+          <RecordCombobox
             id="primaryContactId"
             name="primaryContactId"
-            defaultValue={values.primaryContactId ?? ""}
-          >
-            <option value="">No contact</option>
-            {contacts.map((contact) => (
-              <option key={contact.id} value={contact.id}>
-                {contact.label}
-              </option>
-            ))}
-          </NativeSelect>
+            label="Primary contact"
+            initial={primaryContact}
+            search={searchContactOptionsAction}
+            placeholder="Search contacts…"
+            {...comboboxErrorProps("primaryContactId", errorFor("primaryContactId"))}
+          />
         </Field>
         <Field label="Owner" htmlFor="ownerId" error={errorFor("ownerId")}>
           <NativeSelect id="ownerId" name="ownerId" defaultValue={values.ownerId ?? ""}>

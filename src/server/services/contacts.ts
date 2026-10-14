@@ -142,22 +142,6 @@ export async function getContact(ctx: Ctx, id: string) {
   return notFoundUnless(contact, "Contact");
 }
 
-/** Lightweight list for pickers (deal and task forms). */
-export async function contactOptions(ctx: Ctx) {
-  assertCan(ctx, "records:read");
-  const contacts = await db.contact.findMany({
-    where: { workspaceId: ctx.workspaceId },
-    select: { id: true, firstName: true, lastName: true, companyId: true },
-    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-    take: 1000,
-  });
-  return contacts.map((contact) => ({
-    id: contact.id,
-    label: `${contact.firstName} ${contact.lastName}`,
-    companyId: contact.companyId,
-  }));
-}
-
 async function buildContactData(
   tx: DbClient,
   ctx: Ctx,

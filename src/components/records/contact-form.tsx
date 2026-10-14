@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import { createContactAction, updateContactAction } from "@/app/(app)/contacts/actions";
+import { searchCompanyOptionsAction } from "@/app/(app)/record-actions";
 import { Field, FormError, NativeSelect, SubmitButton, errorProps } from "@/components/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { LIFECYCLE_LABELS } from "@/lib/format";
 import { useActionForm } from "@/lib/use-action-form";
 
 import { CustomFieldInputs, type FieldDefinitionView } from "./custom-fields";
+import { RecordCombobox, type RecordOption } from "./record-combobox";
 import { TagPicker } from "./tag-picker";
 
 export interface ContactFormValues {
@@ -29,14 +31,15 @@ export interface ContactFormValues {
 export function ContactForm({
   contactId,
   values,
-  companies,
+  company,
   members,
   tags,
   fields,
 }: {
   contactId?: string;
   values?: ContactFormValues;
-  companies: Array<{ id: string; label: string }>;
+  /** Currently linked company, shown in the picker. */
+  company: RecordOption | null;
   members: Array<{ id: string; label: string }>;
   tags: Array<{ id: string; name: string; color: string }>;
   fields: FieldDefinitionView[];
@@ -84,14 +87,15 @@ export function ContactForm({
         {text("phone", "Phone", values?.phone, { type: "tel" })}
         {text("jobTitle", "Job title", values?.jobTitle)}
         <Field label="Company" htmlFor="companyId" error={errorFor("companyId")}>
-          <NativeSelect id="companyId" name="companyId" defaultValue={values?.companyId ?? ""}>
-            <option value="">No company</option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.label}
-              </option>
-            ))}
-          </NativeSelect>
+          <RecordCombobox
+            id="companyId"
+            name="companyId"
+            label="Company"
+            initial={company}
+            search={searchCompanyOptionsAction}
+            placeholder="Search companies…"
+            {...(errorFor("companyId") ? { invalid: true, describedBy: "companyId-error" } : {})}
+          />
         </Field>
         <Field label="Lifecycle stage" htmlFor="lifecycleStage" error={errorFor("lifecycleStage")}>
           <NativeSelect

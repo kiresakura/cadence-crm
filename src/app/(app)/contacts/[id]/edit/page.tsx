@@ -20,7 +20,7 @@ export default async function EditContactPage({ params }: PageProps<"/contacts/[
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
-  const data = await loadContactFormData(ctx);
+  const data = await loadContactFormData(ctx, contact.companyId);
   return (
     <>
       <PageHeader

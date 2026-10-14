@@ -110,17 +110,6 @@ export async function getCompany(ctx: Ctx, id: string) {
   return notFoundUnless(company, "Company");
 }
 
-export async function companyOptions(ctx: Ctx) {
-  assertCan(ctx, "records:read");
-  const companies = await db.company.findMany({
-    where: { workspaceId: ctx.workspaceId },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-    take: 1000,
-  });
-  return companies.map((company) => ({ id: company.id, label: company.name }));
-}
-
 async function buildCompanyData(
   tx: DbClient,
   ctx: Ctx,

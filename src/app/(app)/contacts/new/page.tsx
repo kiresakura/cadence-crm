@@ -14,8 +14,12 @@ export default async function NewContactPage({ searchParams }: PageProps<"/conta
   const { ctx } = await requirePageContext();
   if (!can(ctx.role, "records:write")) redirect("/contacts");
   const params = await searchParams;
-  const data = await loadContactFormData(ctx);
-  const companyId = typeof params.companyId === "string" ? params.companyId : null;
+  const data = await loadContactFormData(
+    ctx,
+    typeof params.companyId === "string" ? params.companyId : null,
+  );
+  // Only a company from this workspace is pre-filled.
+  const companyId = data.company?.id ?? null;
   return (
     <>
       <PageHeader title="New contact" backHref="/contacts" backLabel="Contacts" />

@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { db } from "@/server/db";
+import { searchCompanyOptions, searchContactOptions } from "@/server/services/record-options";
 import { ValidationError } from "@/server/errors";
 import {
-  contactOptions,
   contactToInput,
   createContact,
   deleteContact,
@@ -19,7 +19,6 @@ import {
   listCompanies,
   parseCompanyFilters,
   updateCompany,
-  companyOptions,
   companyToInput,
 } from "@/server/services/companies";
 import {
@@ -148,7 +147,7 @@ describe("contacts", () => {
 
     const garbage = parseContactFilters({ sort: "drop table", page: "-3", lifecycle: "nope" });
     expect(garbage).toMatchObject({ sort: "-created", page: 1, lifecycle: undefined });
-    expect((await contactOptions(ws.viewer)).length).toBe(page.total);
+    expect((await searchContactOptions(ws.viewer, "")).length).toBe(Math.min(page.total, 20));
   });
 
   it("deletes a contact and keeps an audit record", async () => {
@@ -193,8 +192,8 @@ describe("companies", () => {
 
     const list = await listCompanies(ws.viewer, parseCompanyFilters({ q: "harbor" }));
     expect(list.items[0]?._count.contacts).toBe(1);
-    expect(await companyOptions(ws.viewer)).toEqual([
-      { id: company.id, label: "Harbor Freight Co" },
+    expect(await searchCompanyOptions(ws.viewer, "harbor")).toEqual([
+      { id: company.id, label: "Harbor Freight Co", detail: "harbor.example" },
     ]);
 
     await deleteCompany(ws.member, company.id);

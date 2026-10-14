@@ -1,15 +1,18 @@
 import type { Ctx } from "@/server/permissions";
-import { companyOptions } from "@/server/services/companies";
-import { contactOptions } from "@/server/services/contacts";
 import { listFieldDefinitions } from "@/server/services/custom-fields";
 import { memberOptions } from "@/server/services/members";
 import { listPipelines } from "@/server/services/pipelines";
+import { companyOption, contactOption } from "@/server/services/record-options";
 
-export async function loadDealFormData(ctx: Ctx) {
-  const [pipelines, companies, contacts, members, fields] = await Promise.all([
+/** Everything the deal form needs; pickers start with only the linked records. */
+export async function loadDealFormData(
+  ctx: Ctx,
+  linked: { companyId: string | null; primaryContactId: string | null },
+) {
+  const [pipelines, company, primaryContact, members, fields] = await Promise.all([
     listPipelines(ctx),
-    companyOptions(ctx),
-    contactOptions(ctx),
+    companyOption(ctx, linked.companyId),
+    contactOption(ctx, linked.primaryContactId),
     memberOptions(ctx),
     listFieldDefinitions(ctx, "DEAL"),
   ]);
@@ -24,8 +27,8 @@ export async function loadDealFormData(ctx: Ctx) {
         probability,
       })),
     })),
-    companies,
-    contacts: contacts.map(({ id, label }) => ({ id, label })),
+    company,
+    primaryContact,
     members,
     fields: fields.map(({ id, key, label, type, options, required }) => ({
       id,

@@ -10,6 +10,24 @@ export async function signIn(page: Page, email: string, password = DEMO_PASSWORD
   await expect(page).toHaveURL(/\/dashboard$/);
 }
 
+/** Signs up through the public form, which creates a fresh workspace owned by the new user. */
+export async function registerWorkspace(
+  page: Page,
+  {
+    email,
+    workspaceName,
+    name = "Test Owner",
+  }: { email: string; workspaceName: string; name?: string },
+) {
+  await page.goto("/register");
+  await page.getByLabel("Your name").fill(name);
+  await page.getByLabel("Work email").fill(email);
+  await page.getByLabel("Password").fill("my-own-long-password");
+  await page.getByLabel("Workspace name").fill(workspaceName);
+  await page.getByRole("button", { name: "Create workspace" }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+}
+
 /** "$12,500" -> 12500 */
 export function parseMoney(text: string | null): number {
   return Number((text ?? "").replace(/[^0-9.-]/g, ""));
