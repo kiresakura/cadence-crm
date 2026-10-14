@@ -22,7 +22,7 @@ test("an owner creates a second workspace, switches to it and back", async ({ pa
   await expect(page.getByTestId("metric-open-pipeline")).not.toHaveText("$0");
 });
 
-test("an admin invites a member who can sign in with the temporary password", async ({
+test("an admin invites a member who signs in and replaces the temporary password", async ({
   page,
   browser,
 }) => {
@@ -47,5 +47,16 @@ test("an admin invites a member who can sign in with the temporary password", as
   await invited.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(invited).toHaveURL(/\/dashboard$/);
   await expect(invited.getByText("You have read-only access to this workspace.")).toBeVisible();
+
+  // The new member replaces the temporary password from the account page.
+  await invited.getByRole("button", { name: "Account menu" }).click();
+  await invited.getByRole("menuitem", { name: "Account" }).click();
+  await expect(invited.getByRole("heading", { name: "Your account" })).toBeVisible();
+  await invited.getByLabel("Current password").fill(password);
+  await invited.getByLabel("New password").fill("my-own-long-password");
+  await invited.getByRole("button", { name: "Change password" }).click();
+  await expect(
+    invited.getByText("Password changed. Other sessions were signed out."),
+  ).toBeVisible();
   await context.close();
 });
