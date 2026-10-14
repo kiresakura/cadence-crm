@@ -1,0 +1,53 @@
+# One command demo: docker compose up
+# Then open http://localhost:3100 and sign in with owner@demo.local / cadence-demo.
+#
+# APP_ENV=demo keeps the demo accounts working. A real deployment must set APP_ENV=production
+# with its own AUTH_SECRET and database password; the app refuses to start otherwise.
+name: cadence-crm
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cadence
+      POSTGRES_PASSWORD: cadence
+      POSTGRES_DB: cadence
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cadence -d cadence"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Applies migrations and (re)loads the demo workspace, then exits.
+  migrate:
+    build:
+      context: .
+      target: migrator
+    environment:
+      DATABASE_URL: postgresql://cadence:cadence@db:5432/cadence
+      APP_ENV: demo
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    environment:
+      DATABASE_URL: postgresql://cadence:cadence@db:5432/cadence
+      APP_ENV: demo
+      AUTH_SECRET: ${AUTH_SECRET:-demo-only-insecure-secret-do-not-use-in-production}
+      APP_URL: http://localhost:${APP_PORT:-3100}
+    ports:
+      - "${APP_PORT:-3100}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  db-data:
