@@ -130,8 +130,8 @@ export async function changeRoleAction(membershipId: string, role: string) {
   );
 }
 
-export async function removeMemberAction(membershipId: string) {
-  return done(await runAction(({ ctx }) => removeMember(ctx, membershipId)));
+export async function removeMemberAction(membershipId: string, transferToUserId: string) {
+  return done(await runAction(({ ctx }) => removeMember(ctx, membershipId, { transferToUserId })));
 }
 
 export async function renameWorkspaceAction(formData: FormData) {

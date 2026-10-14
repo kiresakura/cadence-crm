@@ -114,9 +114,12 @@ async function buildCompanyData(
   tx: DbClient,
   ctx: Ctx,
   input: CompanyInput,
-  existingCustomFields: Record<string, unknown> = {},
+  existing?: { ownerId: string | null; customFields: unknown },
 ) {
-  await assertMemberRef(tx, ctx, input.ownerId, "ownerId");
+  // Someone who left the workspace stays the owner until another owner is chosen.
+  if (input.ownerId !== existing?.ownerId) {
+    await assertMemberRef(tx, ctx, input.ownerId, "ownerId");
+  }
   await assertTagRefs(tx, ctx, input.tagIds);
   const definitions = await loadFieldDefinitions(tx, ctx, "COMPANY");
   return {
@@ -127,7 +130,11 @@ async function buildCompanyData(
     phone: input.phone,
     address: input.address,
     ownerId: input.ownerId,
-    customFields: validateCustomFieldValues(definitions, input.customFields, existingCustomFields),
+    customFields: validateCustomFieldValues(
+      definitions,
+      input.customFields,
+      existing ? asJsonObject(existing.customFields) : undefined,
+    ),
   };
 }
 
@@ -164,7 +171,7 @@ export async function updateCompany(ctx: Ctx, id: string, rawInput: unknown) {
       }),
       "Company",
     );
-    const data = await buildCompanyData(tx, ctx, input, asJsonObject(existing.customFields));
+    const data = await buildCompanyData(tx, ctx, input, existing);
     const updated = await tx.company.update({
       where: { id: existing.id },
       data: {

@@ -12,6 +12,7 @@ import {
 } from "@/generated/prisma/enums";
 
 import { MIN_PASSWORD_LENGTH } from "../auth/password";
+import { isReservedFieldKey } from "../domain/custom-fields";
 import {
   currencySchema,
   customFieldsInput,
@@ -183,6 +184,7 @@ export const customFieldDefinitionSchema = z
       .string()
       .trim()
       .regex(/^[a-z][a-z0-9_]{0,39}$/, "Use lowercase letters, digits and underscores.")
+      .refine((key) => !isReservedFieldKey(key), "This key is reserved. Choose another.")
       .optional(),
     type: z.enum(CustomFieldType),
     options: z
@@ -220,4 +222,9 @@ export const invitationRegisterSchema = z.object({
 
 export const changeRoleSchema = z.object({
   role: z.enum(Role),
+});
+
+export const removeMemberSchema = z.object({
+  /** Who takes over the member's records and open tasks; defaults to the person removing. */
+  transferToUserId: optionalId,
 });

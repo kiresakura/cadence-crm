@@ -59,20 +59,38 @@ function coerce(
   }
 }
 
+function isStoredValue(value: unknown): value is CustomFieldValue {
+  return (
+    (typeof value === "string" && value.trim() !== "") ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  );
+}
+
+/** Form posts send strings, so "12" equals a stored 12 and "false" a stored false. */
+function isUnchanged(raw: unknown, stored: unknown): boolean {
+  if (isEmpty(raw)) return isEmpty(stored);
+  return isStoredValue(stored) && String(raw).trim() === String(stored).trim();
+}
+
 /**
  * Validates submitted custom field values against the workspace's definitions.
  *
  * - Keys without a definition are rejected.
  * - Values are coerced to their declared type (form posts send strings).
- * - On update, `existing` values are kept for fields the input does not mention.
+ * - On update (`existing` given), values the input does not mention are kept, and so are
+ *   values that did not change, without re-validating them. A select option removed later or
+ *   a field made required later therefore never blocks unrelated edits; a changed value is
+ *   always checked against the current definition.
  * - Values of deleted definitions are dropped.
  *
+ * Keys are only read as own properties, so labels like "constructor" are ordinary keys.
  * Errors are reported per field as `customFields.<key>`.
  */
 export function validateCustomFieldValues(
   definitions: readonly CustomFieldDefinitionLike[],
   input: Record<string, unknown>,
-  existing: Record<string, unknown> = {},
+  existing?: Record<string, unknown>,
 ): CustomFieldValues {
   const errors: FieldErrors = {};
   const known = new Set(definitions.map((definition) => definition.key));
@@ -81,32 +99,49 @@ export function validateCustomFieldValues(
     if (!known.has(key)) errors[`customFields.${key}`] = ["Unknown custom field."];
   }
 
-  const values: CustomFieldValues = {};
+  const values = new Map<string, CustomFieldValue>();
   for (const definition of definitions) {
-    const raw = Object.hasOwn(input, definition.key)
-      ? input[definition.key]
-      : existing[definition.key];
+    const { key } = definition;
+    const stored = existing && Object.hasOwn(existing, key) ? existing[key] : undefined;
+    const raw = Object.hasOwn(input, key) ? input[key] : stored;
+    if (existing && isUnchanged(raw, stored)) {
+      if (isStoredValue(stored)) values.set(key, stored);
+      continue;
+    }
     if (isEmpty(raw)) {
       if (definition.required) {
-        errors[`customFields.${definition.key}`] = [`${definition.label} is required.`];
+        errors[`customFields.${key}`] = [`${definition.label} is required.`];
       }
       continue;
     }
     const result = coerce(definition, raw);
     if ("error" in result) {
-      errors[`customFields.${definition.key}`] = [result.error];
+      errors[`customFields.${key}`] = [result.error];
     } else {
-      values[definition.key] = result.value;
+      values.set(key, result.value);
     }
   }
 
   if (Object.keys(errors).length > 0) {
     throw new ValidationError("Some custom fields are invalid.", errors);
   }
-  return values;
+  // `Object.fromEntries` defines own properties, so even "__proto__" stays a plain key.
+  return Object.fromEntries(values);
 }
 
-/** Derives a machine key from a label, e.g. "Annual revenue (USD)" -> "annual_revenue_usd". */
+// Keys that collide with properties every JavaScript object inherits.
+const RESERVED_KEYS = new Set(
+  [...Object.getOwnPropertyNames(Object.prototype), "prototype"].map((name) => name.toLowerCase()),
+);
+
+export function isReservedFieldKey(key: string): boolean {
+  return RESERVED_KEYS.has(key.toLowerCase());
+}
+
+/**
+ * Derives a machine key from a label, e.g. "Annual revenue (USD)" -> "annual_revenue_usd".
+ * Labels without Latin letters or digits become "field"; the service numbers repeats.
+ */
 export function customFieldKeyFromLabel(label: string): string {
   const key = label
     .toLowerCase()
@@ -114,5 +149,6 @@ export function customFieldKeyFromLabel(label: string): string {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 40);
-  return /^[a-z]/.test(key) ? key : `field_${key}`.slice(0, 40);
+  if (!key) return "field";
+  return /^[a-z]/.test(key) && !isReservedFieldKey(key) ? key : `field_${key}`.slice(0, 40);
 }

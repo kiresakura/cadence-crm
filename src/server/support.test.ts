@@ -121,6 +121,19 @@ describe("validation helpers", () => {
     });
   });
 
+  it("keeps form fields named like object built-ins as plain keys", () => {
+    const form = new FormData();
+    form.append("cf.constructor", "Bob");
+    form.append("cf.__proto__", "x");
+    form.append("__proto__", "y");
+    const object = formToObject(form);
+    const fields = object.customFields as Record<string, unknown>;
+    expect(Object.hasOwn(fields, "constructor")).toBe(true);
+    expect(Object.hasOwn(fields, "__proto__")).toBe(true);
+    expect(Object.hasOwn(object, "__proto__")).toBe(true);
+    expect(Object.getPrototypeOf(fields)).toBe(Object.prototype);
+  });
+
   it("normalises money, dates and emails", () => {
     expect(moneySchema.parse("12,500.5")).toBe("12500.5");
     expect(moneySchema.safeParse("-1").success).toBe(false);

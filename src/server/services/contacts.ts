@@ -146,16 +146,19 @@ async function buildContactData(
   tx: DbClient,
   ctx: Ctx,
   input: ContactInput,
-  existingCustomFields: Record<string, unknown> = {},
+  existing?: { ownerId: string | null; customFields: unknown },
 ) {
   await assertCompanyRef(tx, ctx, input.companyId);
-  await assertMemberRef(tx, ctx, input.ownerId, "ownerId");
+  // Someone who left the workspace stays the owner until another owner is chosen.
+  if (input.ownerId !== existing?.ownerId) {
+    await assertMemberRef(tx, ctx, input.ownerId, "ownerId");
+  }
   await assertTagRefs(tx, ctx, input.tagIds);
   const definitions = await loadFieldDefinitions(tx, ctx, "CONTACT");
   const customFields = validateCustomFieldValues(
     definitions,
     input.customFields,
-    existingCustomFields,
+    existing ? asJsonObject(existing.customFields) : undefined,
   );
   return {
     firstName: input.firstName,
@@ -205,7 +208,7 @@ export async function updateContact(ctx: Ctx, id: string, rawInput: unknown) {
       }),
       "Contact",
     );
-    const data = await buildContactData(tx, ctx, input, asJsonObject(existing.customFields));
+    const data = await buildContactData(tx, ctx, input, existing);
     const updated = await tx.contact.update({
       where: { id: existing.id },
       data: {

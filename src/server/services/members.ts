@@ -2,10 +2,10 @@ import type { Role } from "@/generated/prisma/enums";
 
 import { recordAudit } from "../audit";
 import { db, type DbClient } from "../db";
-import { ConflictError, ForbiddenError, parseInput } from "../errors";
+import { ConflictError, ForbiddenError, ValidationError, parseInput } from "../errors";
 import { assertCan, type Ctx } from "../permissions";
-import { changeRoleSchema } from "../validation/schemas";
-import { notFoundUnless } from "./guards";
+import { changeRoleSchema, removeMemberSchema } from "../validation/schemas";
+import { assertMemberRef, notFoundUnless } from "./guards";
 
 export async function listMembers(ctx: Ctx) {
   assertCan(ctx, "records:read");
@@ -62,8 +62,18 @@ export async function changeMemberRole(ctx: Ctx, membershipId: string, rawInput:
   });
 }
 
-export async function removeMember(ctx: Ctx, membershipId: string): Promise<void> {
+/**
+ * Removes a member. Their contacts, companies, deals and open tasks in this workspace move to
+ * `transferToUserId` (the person removing them by default) in the same transaction, so no
+ * record is left with an owner who can no longer be chosen.
+ */
+export async function removeMember(
+  ctx: Ctx,
+  membershipId: string,
+  rawInput: unknown = {},
+): Promise<void> {
   assertCan(ctx, "members:manage");
+  const input = parseInput(removeMemberSchema, rawInput);
   await db.$transaction(async (tx) => {
     const target = notFoundUnless(
       await tx.membership.findFirst({
@@ -78,6 +88,28 @@ export async function removeMember(ctx: Ctx, membershipId: string): Promise<void
         throw new ConflictError("A workspace needs at least one owner.");
       }
     }
+    const transferTo = input.transferToUserId ?? ctx.userId;
+    if (transferTo === target.userId) {
+      throw ValidationError.forField(
+        "transferToUserId",
+        "Choose someone other than the member being removed.",
+      );
+    }
+    await assertMemberRef(tx, ctx, transferTo, "transferToUserId");
+    const owned = { workspaceId: ctx.workspaceId, ownerId: target.userId };
+    const handover = { ownerId: transferTo };
+    const transferred = {
+      contacts: (await tx.contact.updateMany({ where: owned, data: handover })).count,
+      companies: (await tx.company.updateMany({ where: owned, data: handover })).count,
+      deals: (await tx.deal.updateMany({ where: owned, data: handover })).count,
+      openTasks: (
+        await tx.task.updateMany({
+          where: { workspaceId: ctx.workspaceId, assigneeId: target.userId, completedAt: null },
+          data: { assigneeId: transferTo },
+        })
+      ).count,
+    };
+
     await tx.membership.delete({ where: { id: target.id } });
     // Signed-in sessions lose access immediately: membership is checked on every request.
     await tx.session.updateMany({
@@ -88,7 +120,12 @@ export async function removeMember(ctx: Ctx, membershipId: string): Promise<void
       action: "member.removed",
       entityType: "member",
       entityId: target.id,
-      changes: { email: target.user.email, role: target.role },
+      changes: {
+        email: target.user.email,
+        role: target.role,
+        transferredTo: transferTo,
+        transferred,
+      },
     });
   });
 }

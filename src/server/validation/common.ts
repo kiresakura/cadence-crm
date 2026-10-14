@@ -99,21 +99,22 @@ export function formToObject(
   formData: FormData,
   options: { arrays?: readonly string[] } = {},
 ): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  const customFields: Record<string, unknown> = {};
+  // Maps, then `Object.fromEntries`: a field named "__proto__" stays an ordinary key.
+  const result = new Map<string, unknown>();
+  const customFields = new Map<string, unknown>();
   for (const [key, value] of formData.entries()) {
     if (typeof value !== "string" || key.startsWith("$ACTION")) continue;
     if (key.startsWith("cf.")) {
-      customFields[key.slice(3)] = value;
+      customFields.set(key.slice(3), value);
     } else if (options.arrays?.includes(key)) {
-      const list = (result[key] as string[] | undefined) ?? [];
+      const list = (result.get(key) as string[] | undefined) ?? [];
       if (value) list.push(value);
-      result[key] = list;
+      result.set(key, list);
     } else {
-      result[key] = value;
+      result.set(key, value);
     }
   }
-  for (const key of options.arrays ?? []) result[key] ??= [];
-  if (Object.keys(customFields).length > 0) result.customFields = customFields;
-  return result;
+  for (const key of options.arrays ?? []) if (!result.has(key)) result.set(key, []);
+  if (customFields.size > 0) result.set("customFields", Object.fromEntries(customFields));
+  return Object.fromEntries(result);
 }

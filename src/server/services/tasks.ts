@@ -125,7 +125,10 @@ export async function updateTask(ctx: Ctx, id: string, rawInput: unknown, timeZo
       await tx.task.findFirst({ where: { id, workspaceId: ctx.workspaceId } }),
       "Task",
     );
-    await assertMemberRef(tx, ctx, input.assigneeId, "assigneeId");
+    // Someone who left the workspace stays assigned until another assignee is chosen.
+    if (input.assigneeId !== existing.assigneeId) {
+      await assertMemberRef(tx, ctx, input.assigneeId, "assigneeId");
+    }
     await assertContactRef(tx, ctx, input.contactId);
     await assertCompanyRef(tx, ctx, input.companyId);
     await assertDealRef(tx, ctx, input.dealId);

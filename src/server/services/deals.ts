@@ -172,8 +172,12 @@ async function buildDealData(
   tx: DbClient,
   ctx: Ctx,
   input: DealInput,
-  current: { type: StageType; closedAt: Date | null } | null,
-  existingCustomFields: Record<string, unknown> = {},
+  current: {
+    type: StageType;
+    closedAt: Date | null;
+    ownerId: string | null;
+    customFields: unknown;
+  } | null,
   now = new Date(),
 ) {
   const stage = await findStage(tx, ctx, input.stageId);
@@ -182,12 +186,15 @@ async function buildDealData(
   }
   await assertCompanyRef(tx, ctx, input.companyId);
   await assertContactRef(tx, ctx, input.primaryContactId, "primaryContactId");
-  await assertMemberRef(tx, ctx, input.ownerId, "ownerId");
+  // Someone who left the workspace stays the owner until another owner is chosen.
+  if (input.ownerId !== current?.ownerId) {
+    await assertMemberRef(tx, ctx, input.ownerId, "ownerId");
+  }
   const definitions = await loadFieldDefinitions(tx, ctx, "DEAL");
   const customFields = validateCustomFieldValues(
     definitions,
     input.customFields,
-    existingCustomFields,
+    current ? asJsonObject(current.customFields) : undefined,
   );
   const transition = resolveStageTransition(stage, current, input.lostReason, now);
   return {
@@ -236,13 +243,12 @@ export async function updateDeal(ctx: Ctx, id: string, rawInput: unknown) {
       }),
       "Deal",
     );
-    const { data } = await buildDealData(
-      tx,
-      ctx,
-      input,
-      { type: existing.stage.type, closedAt: existing.closedAt },
-      asJsonObject(existing.customFields),
-    );
+    const { data } = await buildDealData(tx, ctx, input, {
+      type: existing.stage.type,
+      closedAt: existing.closedAt,
+      ownerId: existing.ownerId,
+      customFields: existing.customFields,
+    });
     const updated = await tx.deal.update({ where: { id: existing.id }, data });
     const changes = diffFields(existing, updated, AUDITED_FIELDS);
     if (changes) {

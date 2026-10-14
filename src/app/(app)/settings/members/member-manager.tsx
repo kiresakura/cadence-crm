@@ -67,6 +67,8 @@ export function MemberManager({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [link, setLink] = useState<InviteLink | null>(null);
+  const [removing, setRemoving] = useState<MemberView | null>(null);
+  const [handoverTo, setHandoverTo] = useState(currentUserId);
   const assignable: Role[] =
     actorRole === "OWNER" ? ["OWNER", "ADMIN", "MEMBER", "VIEWER"] : ["ADMIN", "MEMBER", "VIEWER"];
   const invite = useActionForm(createInvitationAction, {
@@ -149,7 +151,14 @@ export function MemberManager({
                   size="icon-sm"
                   aria-label={`Remove ${member.name}`}
                   disabled={pending || locked}
-                  onClick={() => run(() => removeMemberAction(member.id), "Member removed")}
+                  onClick={() => {
+                    setRemoving(member);
+                    setHandoverTo(
+                      member.userId === currentUserId
+                        ? (members.find((other) => other.userId !== member.userId)?.userId ?? "")
+                        : currentUserId,
+                    );
+                  }}
                 >
                   <UserX />
                 </Button>
@@ -243,6 +252,51 @@ export function MemberManager({
           ))}
         </dl>
       </section>
+
+      <Dialog open={removing !== null} onOpenChange={(open) => !open && setRemoving(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove {removing?.name}?</DialogTitle>
+            <DialogDescription>
+              They lose access right away. Their contacts, companies, deals and open tasks in this
+              workspace move to the member you choose.
+            </DialogDescription>
+          </DialogHeader>
+          <Field label="Hand over their work to" htmlFor="handover-to">
+            <NativeSelect
+              id="handover-to"
+              value={handoverTo}
+              onChange={(event) => setHandoverTo(event.target.value)}
+            >
+              {members
+                .filter((member) => member.userId !== removing?.userId)
+                .map((member) => (
+                  <option key={member.userId} value={member.userId}>
+                    {member.name}
+                    {member.userId === currentUserId ? " (you)" : ""}
+                  </option>
+                ))}
+            </NativeSelect>
+          </Field>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemoving(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={pending || !handoverTo}
+              onClick={() => {
+                const target = removing;
+                if (!target) return;
+                setRemoving(null);
+                run(() => removeMemberAction(target.id, handoverTo), "Member removed");
+              }}
+            >
+              Remove member
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={link !== null} onOpenChange={(open) => !open && setLink(null)}>
         <DialogContent className="sm:max-w-lg">

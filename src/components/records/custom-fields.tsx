@@ -30,7 +30,17 @@ export function CustomFieldInputs({
         const id = `cf-${definition.key}`;
         const name = `cf.${definition.key}`;
         const error = errorFor(`customFields.${definition.key}`);
-        const value = values[definition.key];
+        // Own properties only: a key such as "constructor" must not read Object.prototype.
+        const value = Object.hasOwn(values, definition.key) ? values[definition.key] : undefined;
+        // A stored choice whose option was removed later stays selectable, so saving the form
+        // sends it back unchanged instead of clearing it.
+        const retired =
+          definition.type === "SELECT" &&
+          typeof value === "string" &&
+          value !== "" &&
+          !definition.options.includes(value)
+            ? value
+            : null;
         const common = { id, name, ...errorProps(id, error) };
         return (
           <Field
@@ -43,6 +53,7 @@ export function CustomFieldInputs({
             {definition.type === "SELECT" ? (
               <NativeSelect {...common} defaultValue={typeof value === "string" ? value : ""}>
                 <option value="">—</option>
+                {retired ? <option value={retired}>{retired} (no longer an option)</option> : null}
                 {definition.options.map((option) => (
                   <option key={option} value={option}>
                     {option}

@@ -216,13 +216,14 @@ describe("custom field definitions", () => {
       type: "NUMBER",
     });
     expect(definition.key).toBe("contract_length_months");
-    await expect(
-      createFieldDefinition(ws.admin, {
-        entityType: "DEAL",
-        label: "Contract length (months)",
-        type: "TEXT",
-      }),
-    ).rejects.toThrow(/already exists/);
+    // A repeated label gets a numbered key instead of an error.
+    const repeated = await createFieldDefinition(ws.admin, {
+      entityType: "DEAL",
+      label: "Contract length (months)",
+      type: "TEXT",
+    });
+    expect(repeated.key).toBe("contract_length_months_2");
+    await deleteFieldDefinition(ws.admin, repeated.id);
 
     const updated = await updateFieldDefinition(ws.admin, definition.id, {
       label: "Contract term",

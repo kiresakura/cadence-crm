@@ -16,24 +16,44 @@ export async function listFieldDefinitions(ctx: Ctx, entityType?: CustomFieldEnt
   });
 }
 
+/** The key derived from the label, numbered (`_2`, `_3` …) when it is already taken. */
+async function availableKey(ctx: Ctx, entityType: CustomFieldEntity, label: string) {
+  const base = customFieldKeyFromLabel(label);
+  const taken = new Set(
+    (
+      await db.customFieldDefinition.findMany({
+        where: { workspaceId: ctx.workspaceId, entityType },
+        select: { key: true },
+      })
+    ).map((definition) => definition.key),
+  );
+  for (let n = 1; ; n++) {
+    const suffix = n === 1 ? "" : `_${n}`;
+    const candidate = `${base.slice(0, 40 - suffix.length)}${suffix}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
 export async function createFieldDefinition(ctx: Ctx, rawInput: unknown) {
   assertCan(ctx, "settings:manage");
   const input = parseInput(customFieldDefinitionSchema, rawInput);
-  const key = input.key ?? customFieldKeyFromLabel(input.label);
-  const clash = await db.customFieldDefinition.findUnique({
-    where: {
-      workspaceId_entityType_key: {
-        workspaceId: ctx.workspaceId,
-        entityType: input.entityType,
-        key,
+  const key = input.key ?? (await availableKey(ctx, input.entityType, input.label));
+  if (input.key) {
+    const clash = await db.customFieldDefinition.findUnique({
+      where: {
+        workspaceId_entityType_key: {
+          workspaceId: ctx.workspaceId,
+          entityType: input.entityType,
+          key,
+        },
       },
-    },
-    select: { id: true },
-  });
-  if (clash) {
-    throw new ConflictError("A field with this key already exists.", {
-      label: ["Choose a different label."],
+      select: { id: true },
     });
+    if (clash) {
+      throw new ConflictError("A field with this key already exists.", {
+        key: ["Choose a different key."],
+      });
+    }
   }
   return db.$transaction(async (tx) => {
     const position = await tx.customFieldDefinition.count({
