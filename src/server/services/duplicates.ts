@@ -1,4 +1,4 @@
-import { Prisma } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 
 import { recordAudit } from "../audit";
 import { db } from "../db";
