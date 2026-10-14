@@ -11,7 +11,6 @@ const nextConfig: NextConfig = {
   // The Docker image runs the minimal standalone server; local `next start` uses the regular output.
   output: process.env.BUILD_STANDALONE === "1" ? "standalone" : undefined,
   poweredByHeader: false,
-  typedRoutes: true,
   turbopack: {
     rules: {
       "*.css": {
