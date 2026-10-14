@@ -21,7 +21,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
-        <Toaster richColors closeButton position="top-right" />
+        <Toaster theme="light" richColors closeButton position="top-right" />
       </body>
     </html>
   );
