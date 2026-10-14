@@ -26,13 +26,17 @@ export function pageOf<T>(items: T[], total: number, page: number, pageSize: num
   return { items, total, page, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)) };
 }
 
-/** Splits a search string into terms; every term must match at least one field. */
+/**
+ * Splits a search string into terms; every term must match at least one field. Searches use
+ * SQL LIKE, so `%`, `_` and `\` are escaped to match themselves instead of acting as wildcards.
+ */
 export function searchTerms(q: string | undefined): string[] {
   return (q ?? "")
     .split(/\s+/)
     .map((term) => term.trim())
     .filter(Boolean)
-    .slice(0, 5);
+    .slice(0, 5)
+    .map((term) => term.replace(/[\\%_]/g, "\\$&"));
 }
 
 export const EXPORT_LIMIT = 10_000;

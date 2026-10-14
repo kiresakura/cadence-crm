@@ -1,5 +1,7 @@
 # Cadence CRM
 
+[![CI](https://github.com/kiresakura/cadence-crm/actions/workflows/ci.yml/badge.svg)](https://github.com/kiresakura/cadence-crm/actions/workflows/ci.yml)
+
 **為小型業務團隊打造的多租戶 CRM：聯絡人、公司、商機管線、待辦與業績預測，角色權限一律在伺服器端強制。**
 
 [English](README.md) · [架構說明](docs/ARCHITECTURE.md) · [設計取捨](docs/DECISIONS.md) · [安全政策](SECURITY.md)
@@ -142,6 +144,7 @@ npm run typecheck
 npm test               # 單元＋整合測試（需要 `npm run db:up` 啟動的測試資料庫）
 npm run test:coverage  # 同上，附 src/server 覆蓋率
 npm run build
+npx playwright install chromium   # 每台機器一次：安裝 Playwright 使用的瀏覽器
 npm run test:e2e       # 對 3101 埠的 production build 跑 Playwright
 npm run screenshots    # 用示範資料重新產生 docs/screenshots
 ```

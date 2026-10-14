@@ -66,8 +66,9 @@ export function formatMoney(
       style: "currency",
       currency,
       notation: options.compact ? "compact" : "standard",
+      // Whole amounts show no decimals; any other amount always shows two ("$1,234.50").
       maximumFractionDigits: options.compact ? 1 : Number.isInteger(value) ? 0 : 2,
-      minimumFractionDigits: 0,
+      minimumFractionDigits: options.compact || Number.isInteger(value) ? 0 : 2,
     }).format(value);
   } catch {
     return `${currency} ${value.toFixed(2)}`;

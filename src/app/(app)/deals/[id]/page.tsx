@@ -132,7 +132,7 @@ export default async function DealPage({ params }: PageProps<"/deals/[id]">) {
       </ol>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-        <div className="grid content-start gap-6">
+        <div className="grid min-w-0 content-start gap-6">
           {canWrite ? (
             <Section title="Log activity">
               <ActivityForm
@@ -148,7 +148,7 @@ export default async function DealPage({ params }: PageProps<"/deals/[id]">) {
             <Timeline items={timeline} timeZone={user.timezone} canWrite={canWrite} hide="deal" />
           </Section>
         </div>
-        <div className="grid content-start gap-6">
+        <div className="grid min-w-0 content-start gap-6">
           <Section title="Details">
             <DetailList
               items={[

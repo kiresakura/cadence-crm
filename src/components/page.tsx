@@ -65,6 +65,21 @@ export function EmptyState({
 }
 
 /** Previous / next links that keep the current filters. */
+/** Link to `target` page of a list, keeping the other filters. */
+export function pageHref(
+  basePath: string,
+  searchParams: Record<string, string | undefined>,
+  target: number,
+): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (value && key !== "page") params.set(key, value);
+  }
+  if (target > 1) params.set("page", String(target));
+  const query = params.toString();
+  return `${basePath}${query ? `?${query}` : ""}`;
+}
+
 export function Pagination({
   page,
   pageCount,
@@ -78,15 +93,7 @@ export function Pagination({
   basePath: string;
   searchParams: Record<string, string | undefined>;
 }) {
-  const hrefFor = (target: number) => {
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(searchParams)) {
-      if (value && key !== "page") params.set(key, value);
-    }
-    if (target > 1) params.set("page", String(target));
-    const query = params.toString();
-    return `${basePath}${query ? `?${query}` : ""}`;
-  };
+  const hrefFor = (target: number) => pageHref(basePath, searchParams, target);
   const linkClass =
     "rounded-lg border px-3 py-1.5 text-sm hover:bg-muted aria-disabled:pointer-events-none aria-disabled:opacity-40";
   return (
@@ -128,8 +135,8 @@ export function Section({
   className?: string;
 }) {
   return (
-    <section className={cn("rounded-xl border bg-card", className)}>
-      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+    <section className={cn("min-w-0 rounded-xl border bg-card", className)}>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
         <h2 className="text-sm font-semibold">{title}</h2>
         {action}
       </div>

@@ -25,8 +25,10 @@ function viewWhere(view: TaskView, windows: TaskWindows): Prisma.TaskWhereInput 
   switch (view) {
     case "overdue":
       return { completedAt: null, dueAt: { lt: windows.now } };
+    // Overdue is anything past due; "today" is what is still due later today, so a task due
+    // earlier today shows once, under Overdue.
     case "today":
-      return { completedAt: null, dueAt: { gte: windows.startOfToday, lte: windows.endOfToday } };
+      return { completedAt: null, dueAt: { gte: windows.now, lte: windows.endOfToday } };
     case "upcoming":
       return { completedAt: null, dueAt: { gt: windows.endOfToday, lte: windows.endOfUpcoming } };
     case "completed":
@@ -72,10 +74,16 @@ export async function listTasksFor(
   });
 }
 
+/** The caller's open tasks that are past due (what the "Overdue" task view lists). */
 export async function countOverdueTasks(ctx: Ctx, now: Date) {
   assertCan(ctx, "records:read");
   return db.task.count({
-    where: { workspaceId: ctx.workspaceId, completedAt: null, dueAt: { lt: now } },
+    where: {
+      workspaceId: ctx.workspaceId,
+      assigneeId: ctx.userId,
+      completedAt: null,
+      dueAt: { lt: now },
+    },
   });
 }
 

@@ -84,7 +84,7 @@ export default async function CompanyPage({ params }: PageProps<"/companies/[id]
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-        <div className="grid content-start gap-6">
+        <div className="grid min-w-0 content-start gap-6">
           <Section
             title={`People (${company.contacts.length})`}
             action={
@@ -138,7 +138,7 @@ export default async function CompanyPage({ params }: PageProps<"/companies/[id]
           </Section>
         </div>
 
-        <div className="grid content-start gap-6">
+        <div className="grid min-w-0 content-start gap-6">
           <Section title="Details">
             <DetailList
               items={[

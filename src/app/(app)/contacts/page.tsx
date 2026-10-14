@@ -1,9 +1,10 @@
 import { Copy, Download, Plus, Upload, Users } from "lucide-react";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LifecycleBadge, TagBadge, UserAvatar } from "@/components/badges";
-import { EmptyState, PageHeader, Pagination } from "@/components/page";
+import { EmptyState, PageHeader, pageHref, Pagination } from "@/components/page";
 import { ListFilters } from "@/components/records/list-filters";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,9 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
     memberOptions(ctx),
     listTags(ctx),
   ]);
+  // A page number past the end (an old link, a deleted record) shows the last page instead.
+  if (page.total > 0 && page.page > page.pageCount)
+    redirect(pageHref("/contacts", raw, page.pageCount));
   const canWrite = can(ctx.role, "records:write");
   const exportQuery = new URLSearchParams(
     Object.entries(raw).filter(([key, value]) => key !== "page" && value),

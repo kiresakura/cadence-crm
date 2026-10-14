@@ -1,9 +1,10 @@
 import { Download, KanbanSquare, List, Plus } from "lucide-react";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { StageBadge } from "@/components/badges";
-import { EmptyState, PageHeader, Pagination } from "@/components/page";
+import { EmptyState, PageHeader, pageHref, Pagination } from "@/components/page";
 import { DealBoard } from "@/components/records/deal-board";
 import { ListFilters } from "@/components/records/list-filters";
 import { Button } from "@/components/ui/button";
@@ -127,6 +128,9 @@ export default async function DealsPage({ searchParams }: PageProps<"/deals">) {
 
   const filters = parseDealFilters(raw);
   const [page, members] = await Promise.all([listDeals(ctx, filters), memberOptions(ctx)]);
+  // A page number past the end (an old link, a deleted record) shows the last page instead.
+  if (page.total > 0 && page.page > page.pageCount)
+    redirect(pageHref("/deals", raw, page.pageCount));
   const exportQuery = new URLSearchParams(
     Object.entries(raw).filter(([key, value]) => !["page", "view"].includes(key) && value),
   ).toString();

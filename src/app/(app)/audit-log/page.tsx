@@ -1,7 +1,8 @@
 import { History, ShieldAlert } from "lucide-react";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
-import { EmptyState, PageHeader, Pagination } from "@/components/page";
+import { EmptyState, PageHeader, pageHref, Pagination } from "@/components/page";
 import { ListFilters } from "@/components/records/list-filters";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -52,6 +53,9 @@ export default async function AuditLogPage({ searchParams }: PageProps<"/audit-l
   const raw = searchParamsToObject(await searchParams);
   const filters = parseAuditFilters(raw);
   const page = await listAuditLogs(ctx, filters);
+  // A page number past the end (an old link, a deleted record) shows the last page instead.
+  if (page.total > 0 && page.page > page.pageCount)
+    redirect(pageHref("/audit-log", raw, page.pageCount));
 
   return (
     <>

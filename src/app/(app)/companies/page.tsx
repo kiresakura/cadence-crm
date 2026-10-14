@@ -1,9 +1,10 @@
 import { Building2, Plus } from "lucide-react";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { TagBadge } from "@/components/badges";
-import { EmptyState, PageHeader, Pagination } from "@/components/page";
+import { EmptyState, PageHeader, pageHref, Pagination } from "@/components/page";
 import { ListFilters } from "@/components/records/list-filters";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,9 @@ export default async function CompaniesPage({ searchParams }: PageProps<"/compan
     memberOptions(ctx),
     listTags(ctx),
   ]);
+  // A page number past the end (an old link, a deleted record) shows the last page instead.
+  if (page.total > 0 && page.page > page.pageCount)
+    redirect(pageHref("/companies", raw, page.pageCount));
   const canWrite = can(ctx.role, "records:write");
   const filtered = Boolean(filters.q || filters.owner || filters.tag);
 

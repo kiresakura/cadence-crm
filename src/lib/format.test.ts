@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fullName } from "./format";
+import { formatMoney, fullName } from "./format";
 
 describe("fullName", () => {
   it("writes Latin names given name first", () => {
@@ -11,5 +11,14 @@ describe("fullName", () => {
     expect(fullName({ firstName: "小明", lastName: "王" })).toBe("王小明");
     expect(fullName({ firstName: "太郎", lastName: "山田" })).toBe("山田太郎");
     expect(fullName({ firstName: "민준", lastName: "김" })).toBe("김민준");
+  });
+});
+
+describe("formatMoney", () => {
+  it("shows whole amounts without decimals and others with exactly two", () => {
+    expect(formatMoney(12500, "USD")).toBe("$12,500");
+    expect(formatMoney("1234.5", "USD")).toBe("$1,234.50");
+    expect(formatMoney(1000000000877258.5, "USD")).toBe("$1,000,000,000,877,258.50");
+    expect(formatMoney(0.1, "EUR")).toBe("€0.10");
   });
 });

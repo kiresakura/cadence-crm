@@ -1,5 +1,7 @@
 # Cadence CRM
 
+[![CI](https://github.com/kiresakura/cadence-crm/actions/workflows/ci.yml/badge.svg)](https://github.com/kiresakura/cadence-crm/actions/workflows/ci.yml)
+
 **A multi-tenant CRM for small sales teams — contacts, companies, deal pipelines, tasks and forecasting, with role-based access enforced on the server.**
 
 [繁體中文說明](README.zh-TW.md) · [Architecture](docs/ARCHITECTURE.md) · [Design decisions](docs/DECISIONS.md) · [Security](SECURITY.md)
@@ -142,6 +144,7 @@ npm run typecheck
 npm test               # unit + integration (needs the test database from `npm run db:up`)
 npm run test:coverage  # same, with a coverage report for src/server
 npm run build
+npx playwright install chromium   # once per machine: the browser Playwright drives
 npm run test:e2e       # Playwright against the production build on port 3101
 npm run screenshots    # regenerate docs/screenshots from the demo data
 ```

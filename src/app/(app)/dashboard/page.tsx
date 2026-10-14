@@ -106,7 +106,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         <Metric
           label="Overdue tasks"
           value={String(overdueTasks)}
-          detail="Across the whole team"
+          detail="Assigned to you"
           icon={AlarmClock}
           testId="metric-overdue-tasks"
           href="/tasks?view=overdue"
@@ -124,20 +124,20 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           title={`Open pipeline by stage${chartPipeline ? ` · ${chartPipeline.name}` : ""}`}
           action={
             pipelines.length > 1 ? (
-              <div className="flex gap-1">
+              <nav aria-label="Pipelines" className="flex max-w-full gap-1 overflow-x-auto">
                 {pipelines.map((pipeline) => (
                   <Link
                     key={pipeline.id}
                     href={`/dashboard?pipeline=${pipeline.id}`}
                     className={cn(
-                      "rounded-md px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted",
+                      "shrink-0 rounded-md px-2 py-0.5 text-xs whitespace-nowrap text-muted-foreground hover:bg-muted",
                       pipeline.id === chartPipeline?.id && "bg-muted font-medium text-foreground",
                     )}
                   >
                     {pipeline.name}
                   </Link>
                 ))}
-              </div>
+              </nav>
             ) : null
           }
         >
