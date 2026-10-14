@@ -8,7 +8,7 @@
 
 ## Features
 
-- **Workspaces and roles** — sign up creates a workspace; switch between workspaces; owners and admins add members (account + temporary password) and change roles. `OWNER`, `ADMIN`, `MEMBER` and read-only `VIEWER` are enforced in the service layer, not just hidden in the UI.
+- **Workspaces and roles** — sign up creates a workspace; switch between workspaces; owners and admins invite people with a one-time link (valid for 7 days, accepted only by the invited email address) and change roles. `OWNER`, `ADMIN`, `MEMBER` and read-only `VIEWER` are enforced in the service layer, not just hidden in the UI.
 - **Contacts** — search across name, email, phone and company; filter by owner, lifecycle stage and tag; sort and paginate; detail page with company, deals, activity timeline, tasks, tags and custom fields.
 - **Duplicate detection and merge** — contacts sharing an email (case-insensitive) or a normalised phone number are grouped; merging moves activities, tasks, deals and tags to the kept record, fills its empty fields and writes an audit entry.
 - **Companies** — list and detail with their people, deals and a combined timeline.
@@ -76,6 +76,7 @@ Every service function takes a `Ctx` (`userId`, `workspaceId`, `role`) as its fi
 erDiagram
   Workspace ||--o{ Membership : has
   User ||--o{ Membership : has
+  Workspace ||--o{ Invitation : "pending invites"
   User ||--o{ Session : has
   Workspace ||--o{ Company : owns
   Workspace ||--o{ Contact : owns
@@ -147,7 +148,7 @@ npm run screenshots    # regenerate docs/screenshots from the demo data
 
 - **148 Vitest tests** — unit tests for pure rules (permissions matrix, secret guard, stage transitions, custom field validation, CSV parsing and escaping, dashboard math, time zones) and integration tests that run the real services against PostgreSQL: cross-workspace isolation, all four roles, duplicate merge, stage rules, CSV import and export, dashboard figures, sessions and members.
 - **Line coverage of `src/server`: 93.7%** (the thin Next.js adapters in `src/server/next` are exercised by the Playwright suite instead).
-- **7 Playwright tests** — sign in → create contact → create deal → drag it to the next stage → dashboard forecast changes; the lost-reason dialog via the keyboard-friendly "Move to" menu; a viewer sees no edit controls and the API rejects their writes with 403 (exports still work); unauthenticated API calls get 401; registration; creating and switching workspaces; inviting a member who signs in with the temporary password and replaces it.
+- **7 Playwright tests** — sign in → create contact → create deal → drag it to the next stage → dashboard forecast changes; the lost-reason dialog via the keyboard-friendly "Move to" menu; a viewer sees no edit controls and the API rejects their writes with 403 (exports still work); unauthenticated API calls get 401; registration; creating and switching workspaces; inviting people by link — a new person creates an account from it, an existing user signs in and accepts.
 
 CI runs lint, format check, typecheck, unit, integration (PostgreSQL service), build, E2E and a Docker build on every push.
 

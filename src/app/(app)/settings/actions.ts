@@ -8,7 +8,12 @@ import {
   deleteFieldDefinition,
   updateFieldDefinition,
 } from "@/server/services/custom-fields";
-import { addMember, changeMemberRole, removeMember } from "@/server/services/members";
+import {
+  createInvitation,
+  regenerateInvitation,
+  revokeInvitation,
+} from "@/server/services/invitations";
+import { changeMemberRole, removeMember } from "@/server/services/members";
 import {
   addStage,
   createPipeline,
@@ -105,13 +110,16 @@ export async function deleteFieldAction(id: string) {
   return done(await runAction(({ ctx }) => deleteFieldDefinition(ctx, id)));
 }
 
-export async function addMemberAction(formData: FormData) {
-  return done(
-    await runAction(async ({ ctx }) => {
-      const { membership, temporaryPassword } = await addMember(ctx, form(formData));
-      return { id: membership.id, email: membership.user.email, temporaryPassword };
-    }),
-  );
+export async function createInvitationAction(formData: FormData) {
+  return done(await runAction(({ ctx }) => createInvitation(ctx, form(formData))));
+}
+
+export async function regenerateInvitationAction(invitationId: string) {
+  return done(await runAction(({ ctx }) => regenerateInvitation(ctx, invitationId)));
+}
+
+export async function revokeInvitationAction(invitationId: string) {
+  return done(await runAction(({ ctx }) => revokeInvitation(ctx, invitationId)));
 }
 
 export async function changeRoleAction(membershipId: string, role: string) {

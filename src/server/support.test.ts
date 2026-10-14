@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 
 import { diffFields, toAuditValue } from "./audit";
-import { generateTemporaryPassword, hashPassword, verifyPassword } from "./auth/password";
+import { hashPassword, verifyPassword } from "./auth/password";
 import { generateSessionToken, hashSessionToken } from "./auth/session";
 import { ValidationError, parseInput, zodFieldErrors } from "./errors";
 import { RateLimiter } from "./rate-limit";
@@ -19,10 +19,6 @@ describe("passwords", () => {
     expect(await verifyPassword(hash, "correct horse battery")).toBe(true);
     expect(await verifyPassword(hash, "wrong")).toBe(false);
     expect(await verifyPassword("not-a-hash", "x")).toBe(false);
-  });
-
-  it("generates readable temporary passwords", () => {
-    expect(generateTemporaryPassword()).toMatch(/^[a-z]+-[a-z]+-[a-z]+-\d{4}$/);
   });
 });
 

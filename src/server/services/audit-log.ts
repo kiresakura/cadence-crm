@@ -15,6 +15,7 @@ export const AUDIT_ENTITY_FILTERS = [
   "tag",
   "custom_field",
   "member",
+  "invitation",
   "workspace",
 ] as const;
 

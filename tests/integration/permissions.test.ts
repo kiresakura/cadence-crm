@@ -12,12 +12,20 @@ import {
 } from "@/server/services/contacts";
 import { createFieldDefinition } from "@/server/services/custom-fields";
 import { createDeal, moveDeal } from "@/server/services/deals";
-import { addMember, changeMemberRole, removeMember } from "@/server/services/members";
+import { createInvitation } from "@/server/services/invitations";
+import { changeMemberRole, removeMember } from "@/server/services/members";
 import { createPipeline } from "@/server/services/pipelines";
 import { createTag } from "@/server/services/tags";
 import { renameWorkspace } from "@/server/services/workspaces";
 
-import { createTestWorkspace, stageByName, uid, type TestWorkspace } from "./helpers";
+import {
+  createTestWorkspace,
+  createUser,
+  joinThroughInvitation,
+  stageByName,
+  uid,
+  type TestWorkspace,
+} from "./helpers";
 
 describe("server-side role enforcement", () => {
   let ws: TestWorkspace;
@@ -76,7 +84,7 @@ describe("server-side role enforcement", () => {
         createFieldDefinition(ws.member, { entityType: "CONTACT", label: "Nope", type: "TEXT" }),
       ).rejects.toBeInstanceOf(ForbiddenError);
       await expect(
-        addMember(ws.member, { name: "X", email: `x-${uid()}@example.com`, role: "VIEWER" }),
+        createInvitation(ws.member, { email: `x-${uid()}@example.com`, role: "VIEWER" }),
       ).rejects.toBeInstanceOf(ForbiddenError);
       await expect(listAuditLogs(ws.member, { page: 1 })).rejects.toBeInstanceOf(ForbiddenError);
     });
@@ -86,12 +94,8 @@ describe("server-side role enforcement", () => {
     it("can manage settings, members and read the audit log", async () => {
       await createTag(ws.admin, { name: `admin-${uid()}` });
       await createPipeline(ws.admin, { name: "Admin pipeline" });
-      const { membership, temporaryPassword } = await addMember(ws.admin, {
-        name: "New Hire",
-        email: `hire-${uid()}@example.com`,
-        role: "MEMBER",
-      });
-      expect(temporaryPassword).toMatch(/-\d{4}$/);
+      const membership = await joinThroughInvitation(ws.admin, await createUser("Hire"), "MEMBER");
+      expect(membership.role).toBe("MEMBER");
       await changeMemberRole(ws.admin, membership.id, { role: "VIEWER" });
       expect((await listAuditLogs(ws.admin, { page: 1 })).total).toBeGreaterThan(0);
       await removeMember(ws.admin, membership.id);
@@ -99,7 +103,7 @@ describe("server-side role enforcement", () => {
 
     it("cannot grant or modify the owner role, or rename the workspace", async () => {
       await expect(
-        addMember(ws.admin, { name: "Wannabe", email: `own-${uid()}@example.com`, role: "OWNER" }),
+        createInvitation(ws.admin, { email: `own-${uid()}@example.com`, role: "OWNER" }),
       ).rejects.toBeInstanceOf(ForbiddenError);
       const ownerMembership = await db.membership.findFirstOrThrow({
         where: { workspaceId: ws.workspaceId, role: "OWNER" },

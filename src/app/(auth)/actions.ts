@@ -15,6 +15,11 @@ import {
   setSessionCookie,
 } from "@/server/next/request";
 import { safeNext } from "@/server/safe-redirect";
+import {
+  acceptInvitation,
+  declineInvitation,
+  registerWithInvitation,
+} from "@/server/services/invitations";
 import { formToObject } from "@/server/validation/common";
 import { createWorkspace, switchWorkspace } from "@/server/services/workspaces";
 
@@ -91,4 +96,48 @@ export async function changePasswordAction(formData: FormData): Promise<ActionRe
     return toActionError(error);
   }
   return { ok: true, data: null };
+}
+
+export async function registerWithInvitationAction(formData: FormData): Promise<ActionResult> {
+  try {
+    const session = await registerWithInvitation(formToObject(formData));
+    await setSessionCookie(session.token, session.expiresAt);
+  } catch (error) {
+    return toActionError(error);
+  }
+  revalidatePath("/", "layout");
+  redirect("/dashboard");
+}
+
+export async function acceptInvitationAction(token: string): Promise<ActionResult> {
+  try {
+    const request = await getRequestContext();
+    if (!request) return { ok: false, error: "Please sign in again." };
+    const { workspaceId } = await acceptInvitation(request.user.id, token);
+    await setSessionWorkspace(db, request.sessionId, workspaceId);
+  } catch (error) {
+    return toActionError(error);
+  }
+  revalidatePath("/", "layout");
+  redirect("/dashboard");
+}
+
+export async function declineInvitationAction(token: string): Promise<ActionResult> {
+  try {
+    const request = await getRequestContext();
+    if (!request) return { ok: false, error: "Please sign in again." };
+    await declineInvitation(request.user.id, token);
+  } catch (error) {
+    return toActionError(error);
+  }
+  revalidatePath("/", "layout");
+  redirect("/dashboard");
+}
+
+/** Signs out so the invited person can sign in with the right account and come back. */
+export async function switchAccountForInvitationAction(token: string): Promise<void> {
+  const sessionToken = await readSessionToken();
+  if (sessionToken) await deleteSessionByToken(db, sessionToken);
+  await clearSessionCookie();
+  redirect(`/login?next=${safeNext(`/invite/${token}`)}`);
 }

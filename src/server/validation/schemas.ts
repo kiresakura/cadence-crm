@@ -205,10 +205,17 @@ export const customFieldDefinitionSchema = z
   });
 export type CustomFieldDefinitionInput = z.output<typeof customFieldDefinitionSchema>;
 
-export const addMemberSchema = z.object({
-  name: requiredText("Name", 100),
+export const invitationSchema = z.object({
   email,
   role: z.enum(Role).default("MEMBER"),
+});
+
+/** Sign-up through an invitation link: the email always comes from the invitation. */
+export const invitationRegisterSchema = z.object({
+  token: z.string({ error: "This invitation link is invalid." }).trim().min(1).max(200),
+  name: requiredText("Name", 100),
+  password,
+  timezone: z.string().trim().max(64).optional(),
 });
 
 export const changeRoleSchema = z.object({

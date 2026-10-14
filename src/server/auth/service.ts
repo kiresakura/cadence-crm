@@ -113,7 +113,7 @@ export async function updateProfile(userId: string, rawInput: unknown) {
 
 /**
  * Changes the password after verifying the current one, then signs out every other session
- * so a leaked temporary password stops working everywhere else.
+ * so a leaked password stops working everywhere else.
  */
 export async function changePassword(userId: string, currentSessionId: string, rawInput: unknown) {
   const input = parseInput(changePasswordSchema, rawInput);

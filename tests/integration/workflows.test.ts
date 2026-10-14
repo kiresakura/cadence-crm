@@ -21,7 +21,8 @@ import { createCompany } from "@/server/services/companies";
 import { createContact } from "@/server/services/contacts";
 import { getDashboard } from "@/server/services/dashboard";
 import { createDeal, moveDeal } from "@/server/services/deals";
-import { addMember, listMembers, memberOptions, removeMember } from "@/server/services/members";
+import { createInvitation } from "@/server/services/invitations";
+import { listMembers, memberOptions, removeMember } from "@/server/services/members";
 import { createTag, deleteTag, listTags, updateTag } from "@/server/services/tags";
 import {
   createTask,
@@ -38,6 +39,7 @@ import {
   TEST_PASSWORD,
   createTestWorkspace,
   createUser,
+  joinThroughInvitation,
   stageByName,
   uid,
   type TestWorkspace,
@@ -149,20 +151,16 @@ describe("workspaces and members", () => {
     );
   });
 
-  it("adds existing users without a new password and revokes access on removal", async () => {
+  it("adds people who accept an invitation and revokes access on removal", async () => {
     const ws = await createTestWorkspace();
     const outsider = await createUser("Outsider");
-    const { membership, temporaryPassword } = await addMember(ws.owner, {
-      name: "Ignored",
-      email: outsider.email,
-      role: "VIEWER",
-    });
-    expect(temporaryPassword).toBeNull();
+    const membership = await joinThroughInvitation(ws.owner, outsider, "VIEWER");
+    expect(membership.role).toBe("VIEWER");
     await expect(
-      addMember(ws.owner, { name: "Again", email: outsider.email, role: "VIEWER" }),
+      createInvitation(ws.owner, { email: outsider.email, role: "VIEWER" }),
     ).rejects.toBeInstanceOf(ConflictError);
     await expect(
-      addMember(ws.owner, { name: "Demo", email: "someone@demo.local", role: "VIEWER" }),
+      createInvitation(ws.owner, { email: "someone@demo.local", role: "VIEWER" }),
     ).rejects.toBeInstanceOf(ValidationError);
     expect((await listMembers(ws.viewer)).length).toBe(5);
     expect((await memberOptions(ws.viewer)).map((m) => m.label)).toContain("Outsider");

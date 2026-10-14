@@ -27,28 +27,3 @@ export function getDummyHash(): Promise<string> {
   dummyHash ??= hashPassword("not-a-real-password-used-for-timing");
   return dummyHash;
 }
-
-/** Readable temporary password for invited members, e.g. `amber-river-4821`. */
-export function generateTemporaryPassword(random: () => number = Math.random): string {
-  const words = [
-    "amber",
-    "cedar",
-    "delta",
-    "ember",
-    "fable",
-    "harbor",
-    "lumen",
-    "maple",
-    "nova",
-    "orbit",
-    "pixel",
-    "quartz",
-    "river",
-    "summit",
-    "tango",
-    "willow",
-  ];
-  const pick = () => words[Math.floor(random() * words.length)] ?? "nova";
-  const digits = String(Math.floor(random() * 9000) + 1000);
-  return `${pick()}-${pick()}-${pick()}-${digits}`;
-}

@@ -14,6 +14,7 @@ export type AuditEntity =
   | "tag"
   | "custom_field"
   | "member"
+  | "invitation"
   | "workspace";
 
 export interface AuditEntry {

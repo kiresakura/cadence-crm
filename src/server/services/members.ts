@@ -1,12 +1,10 @@
 import type { Role } from "@/generated/prisma/enums";
 
 import { recordAudit } from "../audit";
-import { generateTemporaryPassword, hashPassword } from "../auth/password";
 import { db, type DbClient } from "../db";
-import { isDemoEmail } from "../env";
-import { ConflictError, ForbiddenError, ValidationError, parseInput } from "../errors";
+import { ConflictError, ForbiddenError, parseInput } from "../errors";
 import { assertCan, type Ctx } from "../permissions";
-import { addMemberSchema, changeRoleSchema } from "../validation/schemas";
+import { changeRoleSchema } from "../validation/schemas";
 import { notFoundUnless } from "./guards";
 
 export async function listMembers(ctx: Ctx) {
@@ -32,55 +30,6 @@ function assertCanAssignRole(ctx: Ctx, role: Role) {
 
 async function ownerCount(tx: DbClient, workspaceId: string) {
   return tx.membership.count({ where: { workspaceId, role: "OWNER" } });
-}
-
-/**
- * Adds someone to the workspace. New people get an account with a temporary password that
- * is shown once to the admin (no email is sent in this version).
- */
-export async function addMember(ctx: Ctx, rawInput: unknown) {
-  assertCan(ctx, "members:manage");
-  const input = parseInput(addMemberSchema, rawInput);
-  assertCanAssignRole(ctx, input.role);
-  if (isDemoEmail(input.email)) {
-    throw ValidationError.forField("email", "This email domain is reserved for demo accounts.");
-  }
-
-  const existingUser = await db.user.findUnique({ where: { email: input.email } });
-  const temporaryPassword = existingUser ? null : generateTemporaryPassword();
-  const passwordHash = temporaryPassword ? await hashPassword(temporaryPassword) : null;
-
-  const membership = await db.$transaction(async (tx) => {
-    let userId = existingUser?.id;
-    if (userId) {
-      const already = await tx.membership.findUnique({
-        where: { workspaceId_userId: { workspaceId: ctx.workspaceId, userId } },
-      });
-      if (already) {
-        throw new ConflictError("This person is already a member.", {
-          email: ["Already a member of this workspace."],
-        });
-      }
-    } else {
-      const user = await tx.user.create({
-        data: { email: input.email, name: input.name, passwordHash: passwordHash as string },
-      });
-      userId = user.id;
-    }
-    const created = await tx.membership.create({
-      data: { workspaceId: ctx.workspaceId, userId, role: input.role },
-      include: { user: { select: { id: true, name: true, email: true } } },
-    });
-    await recordAudit(tx, ctx, {
-      action: "member.added",
-      entityType: "member",
-      entityId: created.id,
-      changes: { email: created.user.email, role: created.role, newAccount: !existingUser },
-    });
-    return created;
-  });
-
-  return { membership, temporaryPassword };
 }
 
 export async function changeMemberRole(ctx: Ctx, membershipId: string, rawInput: unknown) {

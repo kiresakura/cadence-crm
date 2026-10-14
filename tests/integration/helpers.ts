@@ -4,6 +4,7 @@ import type { Role } from "@/generated/prisma/enums";
 import { hashPassword } from "@/server/auth/password";
 import { db } from "@/server/db";
 import type { Ctx } from "@/server/permissions";
+import { acceptInvitation, createInvitation } from "@/server/services/invitations";
 import { insertWorkspace } from "@/server/services/workspaces";
 
 export const TEST_PASSWORD = "correct-horse-battery";
@@ -68,4 +69,23 @@ export function stageByName(ws: TestWorkspace, name: string) {
   const stage = ws.stages.find((candidate) => candidate.name === name);
   if (!stage) throw new Error(`No stage named ${name}`);
   return stage;
+}
+
+export function inviteToken(inviteUrl: string): string {
+  const token = new URL(inviteUrl).pathname.split("/").pop();
+  if (!token) throw new Error(`No token in ${inviteUrl}`);
+  return token;
+}
+
+/** Invites an existing user and accepts on their behalf; returns the new membership. */
+export async function joinThroughInvitation(
+  inviter: Ctx,
+  user: { id: string; email: string },
+  role: Role,
+) {
+  const { inviteUrl } = await createInvitation(inviter, { email: user.email, role });
+  await acceptInvitation(user.id, inviteToken(inviteUrl));
+  return db.membership.findUniqueOrThrow({
+    where: { workspaceId_userId: { workspaceId: inviter.workspaceId, userId: user.id } },
+  });
 }

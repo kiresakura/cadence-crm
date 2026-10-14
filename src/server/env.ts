@@ -116,6 +116,11 @@ export function getAuthSecret(env: Env = process.env): string {
   return "insecure-development-only-auth-secret";
 }
 
+/** Public base URL of the app, used to build links such as invitations. */
+export function getAppUrl(env: Env = process.env): string {
+  return (env.APP_URL?.trim() || "http://localhost:3100").replace(/\/+$/, "");
+}
+
 /** Session cookies are `Secure` in production and whenever the public URL is https. */
 export function shouldUseSecureCookies(env: Env = process.env): boolean {
   return isProduction(env) || (env.APP_URL ?? "").startsWith("https://");

@@ -80,13 +80,16 @@ model User {
 
   sessions       Session[]
   memberships    Membership[]
-  ownedCompanies Company[]  @relation("CompanyOwner")
-  ownedContacts  Contact[]  @relation("ContactOwner")
-  ownedDeals     Deal[]     @relation("DealOwner")
-  activities     Activity[] @relation("ActivityAuthor")
-  assignedTasks  Task[]     @relation("TaskAssignee")
-  createdTasks   Task[]     @relation("TaskCreator")
+  ownedCompanies Company[]    @relation("CompanyOwner")
+  ownedContacts  Contact[]    @relation("ContactOwner")
+  ownedDeals     Deal[]       @relation("DealOwner")
+  activities     Activity[]   @relation("ActivityAuthor")
+  assignedTasks  Task[]       @relation("TaskAssignee")
+  createdTasks   Task[]       @relation("TaskCreator")
   auditLogs      AuditLog[]
+
+  sentInvitations     Invitation[] @relation("InvitationInviter")
+  acceptedInvitations Invitation[] @relation("InvitationAcceptor")
 }
 
 model Session {
@@ -125,6 +128,7 @@ model Workspace {
   tags         Tag[]
   customFields CustomFieldDefinition[]
   auditLogs    AuditLog[]
+  invitations  Invitation[]
 }
 
 model Membership {
@@ -139,6 +143,29 @@ model Membership {
 
   @@unique([workspaceId, userId])
   @@index([userId])
+}
+
+/// A one-time link that lets someone join a workspace. Only the person holding the link can
+/// accept it, and only while signed in with the invited email address.
+model Invitation {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// Stored lower-cased, as typed by the inviter.
+  email        String
+  role         Role      @default(MEMBER)
+  /// SHA-256 of the random token; the raw token only exists in the invitation link.
+  tokenHash    String    @unique
+  invitedById  String
+  invitedBy    User      @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  acceptedById String?
+  acceptedBy   User?     @relation("InvitationAcceptor", fields: [acceptedById], references: [id], onDelete: SetNull)
+  revokedAt    DateTime?
+
+  @@index([workspaceId, email])
 }
 
 model Company {
