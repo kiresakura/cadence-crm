@@ -1,4 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { fullName } from "@/lib/format";
 
 import { recordAudit } from "../audit";
 import { db } from "../db";
@@ -190,7 +191,7 @@ export async function mergeContacts(ctx: Ctx, keepId: string, mergeId: string) {
       changes: {
         mergedContact: {
           id: merged.id,
-          name: `${merged.firstName} ${merged.lastName}`,
+          name: fullName(merged),
           email: merged.email,
         },
         moved: {

@@ -12,7 +12,7 @@ import { NewTaskButton, TaskList } from "@/components/records/tasks";
 import { Timeline } from "@/components/records/timeline";
 import { ActivityForm } from "@/components/records/timeline-client";
 import { Button } from "@/components/ui/button";
-import { formatCalendarDate, formatDateTime, formatMoney } from "@/lib/format";
+import { formatCalendarDate, formatDateTime, formatMoney, fullName } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { NotFoundError } from "@/server/errors";
 import { requirePageContext } from "@/server/next/request";
@@ -159,7 +159,7 @@ export default async function DealPage({ params }: PageProps<"/deals/[id]">) {
                       href={`/contacts/${deal.primaryContact.id}`}
                       className="text-primary hover:underline"
                     >
-                      {deal.primaryContact.firstName} {deal.primaryContact.lastName}
+                      {fullName(deal.primaryContact)}
                     </Link>
                   ) : null,
                 },

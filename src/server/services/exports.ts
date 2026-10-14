@@ -1,3 +1,5 @@
+import { fullName } from "@/lib/format";
+
 import { toCsv } from "../domain/csv";
 import type { Ctx } from "../permissions";
 import { dateToDateOnly } from "../validation/common";
@@ -61,9 +63,7 @@ export async function exportDealsCsv(ctx: Ctx, filters: DealFilters): Promise<st
       stage: deal.stage.name,
       status: deal.stage.type.toLowerCase(),
       company: deal.company?.name ?? null,
-      contact: deal.primaryContact
-        ? `${deal.primaryContact.firstName} ${deal.primaryContact.lastName}`
-        : null,
+      contact: deal.primaryContact ? fullName(deal.primaryContact) : null,
       owner: deal.owner?.name ?? null,
       expectedCloseDate: dateToDateOnly(deal.expectedCloseDate),
       closedAt: deal.closedAt,

@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import type { ActivityType } from "@/generated/prisma/enums";
 import { EmptyState } from "@/components/page";
-import { ACTIVITY_LABELS, formatDateTime } from "@/lib/format";
+import { ACTIVITY_LABELS, formatDateTime, fullName } from "@/lib/format";
 
 import { DeleteActivityButton } from "./timeline-client";
 
@@ -70,7 +70,7 @@ export function Timeline({
                       className="text-primary hover:underline"
                       href={`/contacts/${item.contact.id}`}
                     >
-                      {item.contact.firstName} {item.contact.lastName}
+                      {fullName(item.contact)}
                     </Link>
                   ) : null}
                   {item.company && hide !== "company" ? (

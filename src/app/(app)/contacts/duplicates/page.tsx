@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { EmptyState, PageHeader } from "@/components/page";
-import { formatDate } from "@/lib/format";
+import { formatDate, fullName } from "@/lib/format";
 import { requirePageContext } from "@/server/next/request";
 import { can } from "@/server/permissions";
 import { findDuplicateGroups } from "@/server/services/duplicates";
@@ -39,7 +39,7 @@ export default async function DuplicatesPage() {
               reasons={group.reasons}
               contacts={group.contacts.map((contact) => ({
                 id: contact.id,
-                name: `${contact.firstName} ${contact.lastName}`,
+                name: fullName(contact),
                 email: contact.email,
                 phone: contact.phone,
                 jobTitle: contact.jobTitle,

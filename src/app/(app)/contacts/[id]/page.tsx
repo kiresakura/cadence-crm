@@ -12,7 +12,7 @@ import { NewTaskButton, TaskList } from "@/components/records/tasks";
 import { Timeline } from "@/components/records/timeline";
 import { ActivityForm } from "@/components/records/timeline-client";
 import { Button } from "@/components/ui/button";
-import { formatCalendarDate, formatDate, formatMoney } from "@/lib/format";
+import { formatCalendarDate, formatDate, formatMoney, fullName } from "@/lib/format";
 import { NotFoundError } from "@/server/errors";
 import { requirePageContext } from "@/server/next/request";
 import { can } from "@/server/permissions";
@@ -29,7 +29,7 @@ import { deleteContactAction } from "../actions";
 export async function generateMetadata({ params }: PageProps<"/contacts/[id]">): Promise<Metadata> {
   const { ctx } = await requirePageContext();
   const contact = await getContact(ctx, (await params).id).catch(() => null);
-  return { title: contact ? `${contact.firstName} ${contact.lastName}` : "Contact" };
+  return { title: contact ? fullName(contact) : "Contact" };
 }
 
 export default async function ContactPage({ params }: PageProps<"/contacts/[id]">) {
@@ -47,7 +47,7 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
     memberOptions(ctx),
   ]);
   const canWrite = can(ctx.role, "records:write");
-  const name = `${contact.firstName} ${contact.lastName}`;
+  const name = fullName(contact);
 
   return (
     <>

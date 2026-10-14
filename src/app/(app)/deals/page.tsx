@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCalendarDate, formatMoney } from "@/lib/format";
+import { formatCalendarDate, formatMoney, fullName } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { requirePageContext } from "@/server/next/request";
 import { can } from "@/server/permissions";
@@ -111,9 +111,7 @@ export default async function DealsPage({ searchParams }: PageProps<"/deals">) {
               currency: deal.currency,
               stageId: deal.stageId,
               companyName: deal.company?.name ?? null,
-              contactName: deal.primaryContact
-                ? `${deal.primaryContact.firstName} ${deal.primaryContact.lastName}`
-                : null,
+              contactName: deal.primaryContact ? fullName(deal.primaryContact) : null,
               ownerName: deal.owner?.name ?? null,
               expectedClose: deal.expectedCloseDate
                 ? formatCalendarDate(deal.expectedCloseDate).replace(/, \d{4}$/, "")

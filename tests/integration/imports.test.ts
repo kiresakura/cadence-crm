@@ -5,7 +5,12 @@ import { ForbiddenError, ValidationError } from "@/server/errors";
 import { createContact, parseContactFilters } from "@/server/services/contacts";
 import { createDeal, parseDealFilters } from "@/server/services/deals";
 import { exportContactsCsv, exportDealsCsv } from "@/server/services/exports";
-import { importContacts, previewContactImport, sanitizeMapping } from "@/server/services/imports";
+import {
+  importContacts,
+  previewContactImport,
+  readImportUpload,
+  sanitizeMapping,
+} from "@/server/services/imports";
 import { createTag } from "@/server/services/tags";
 
 import { createTestWorkspace, stageByName, type TestWorkspace } from "./helpers";
@@ -152,5 +157,91 @@ describe("CSV export", () => {
     const lines = csv.trim().split("\r\n");
     expect(lines).toHaveLength(2);
     expect(lines[1]).toMatch(/^Won deal,250\.5,USD,Sales,Won,won,/);
+  });
+});
+
+describe("importing a Chinese spreadsheet", () => {
+  it("accepts a header row with several Chinese column names", async () => {
+    const ws = await createTestWorkspace();
+    const result = await importContacts(
+      ws.member,
+      "名字,姓氏,電子郵件\n小明,王,ming@example.com\n",
+    );
+    expect(result.mapping).toEqual({ 名字: "firstName", 姓氏: "lastName", 電子郵件: "email" });
+    expect(result.created).toBe(1);
+  });
+
+  it("splits full names family name first and reports spreadsheet row numbers", async () => {
+    const ws = await createTestWorkspace();
+    const csv = [
+      "姓名,電子郵件,公司",
+      "王小明,ming@example.com,台北商行",
+      "歐陽娜娜,nana@example.com,",
+      "",
+      "Cher,cher@example.com,",
+      "林 志玲,not-an-email,",
+      "Ada Lovelace,ada@example.com,",
+    ].join("\n");
+
+    const preview = await previewContactImport(ws.member, csv);
+    expect(preview.mapping).toEqual({ 姓名: "fullName", 電子郵件: "email", 公司: "companyName" });
+    expect(preview.rows.map((row) => [row.rowNumber, row.status])).toEqual([
+      [2, "ready"],
+      [3, "ready"],
+      [5, "error"],
+      [6, "error"],
+      [7, "ready"],
+    ]);
+    const cher = preview.rows.find((row) => row.rowNumber === 5);
+    expect(cher?.status === "error" && cher.messages.join(" ")).toMatch(/Cher/);
+
+    const result = await importContacts(ws.member, csv);
+    expect(result.created).toBe(3);
+    const people = await db.contact.findMany({
+      where: { workspaceId: ws.workspaceId },
+      select: { firstName: true, lastName: true },
+      orderBy: { email: "asc" },
+    });
+    expect(people).toEqual([
+      { firstName: "Ada", lastName: "Lovelace" },
+      { firstName: "小明", lastName: "王" },
+      { firstName: "娜娜", lastName: "歐陽" },
+    ]);
+  });
+
+  it("explains files with too many rows instead of failing", async () => {
+    const ws = await createTestWorkspace();
+    const rows = Array.from({ length: 16_000 }, (_, i) => `Person ${i},p${i}@example.com`);
+    const csv = `Name,Email\n${rows.join("\n")}`;
+    await expect(previewContactImport(ws.member, csv)).rejects.toThrow(/at most 5000 rows/);
+  });
+});
+
+describe("import uploads", () => {
+  function upload(file: Blob | string | null, mapping?: string) {
+    const formData = new FormData();
+    if (file !== null) formData.set("file", file);
+    if (mapping !== undefined) formData.set("mapping", mapping);
+    return formData;
+  }
+
+  it("reads the file and the column mapping", async () => {
+    const file = new File(["First name,Last name\nAda,Lovelace\n"], "people.csv");
+    await expect(readImportUpload(upload(file, '{"First name":"firstName"}'))).resolves.toEqual({
+      text: "First name,Last name\nAda,Lovelace\n",
+      mapping: { "First name": "firstName" },
+    });
+    await expect(readImportUpload(upload(file))).resolves.toMatchObject({ mapping: undefined });
+  });
+
+  it("explains missing, oversized and malformed uploads", async () => {
+    await expect(readImportUpload(upload(null))).rejects.toThrow("Choose a CSV file.");
+    await expect(readImportUpload(upload("plain text"))).rejects.toThrow("Choose a CSV file.");
+    const big = new File(["x".repeat(2 * 1024 * 1024 + 1)], "big.csv");
+    await expect(readImportUpload(upload(big))).rejects.toThrow("The file is larger than 2 MB.");
+    const file = new File(["a"], "a.csv");
+    await expect(readImportUpload(upload(file, "{not json"))).rejects.toBeInstanceOf(
+      ValidationError,
+    );
   });
 });

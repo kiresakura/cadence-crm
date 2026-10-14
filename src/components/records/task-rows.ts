@@ -1,4 +1,4 @@
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, fullName } from "@/lib/format";
 
 import type { TaskRow } from "./tasks";
 
@@ -33,7 +33,7 @@ export function toTaskRows(
       : task.contact
         ? {
             href: `/contacts/${task.contact.id}`,
-            label: `${task.contact.firstName} ${task.contact.lastName}`,
+            label: fullName(task.contact),
           }
         : task.company
           ? { href: `/companies/${task.company.id}`, label: task.company.name }

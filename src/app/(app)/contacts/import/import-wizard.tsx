@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { fullName } from "@/lib/format";
 
 import { importContactsAction, previewImportAction } from "../actions";
 
@@ -41,56 +42,88 @@ interface Analysis {
   unknownTags: string[];
 }
 
+/** Same limit as the server; checked before uploading so the wizard can explain it. */
+const MAX_FILE_BYTES = 2 * 1024 * 1024;
+
 const SAMPLE = `First name,Last name,Email,Phone,Company,Lifecycle stage,Tags
 Avery,Stone,avery.stone@example.com,+1 555 0100,Larkspur & Vane Supply,prospect,
 Jordan,Lee,jordan.lee@example.com,,Moonquill Studio,lead,`;
 
 export function ImportWizard({ fields }: { fields: Array<{ key: string; label: string }> }) {
   const [fileName, setFileName] = useState<string | null>(null);
-  const [text, setText] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [result, setResult] = useState<{ created: number; summary: Analysis["summary"] } | null>(
     null,
   );
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function preview(content: string, mapping?: Mapping) {
+  // Problems are shown next to the file picker; whatever was previewed before stays on screen.
+  function fail(message: string) {
+    setError(message);
+    toast.error(message);
+  }
+
+  function upload(chosen: File, mapping?: Mapping) {
+    const formData = new FormData();
+    formData.set("file", chosen);
+    if (mapping) formData.set("mapping", JSON.stringify(mapping));
+    return formData;
+  }
+
+  function preview(chosen: File, mapping?: Mapping) {
     startTransition(async () => {
-      const response = await previewImportAction(content, mapping ?? undefined);
-      if (response.ok) {
-        setAnalysis(response.data as Analysis);
-      } else {
-        toast.error(response.error);
-        if (!mapping) setAnalysis(null);
+      try {
+        const response = await previewImportAction(upload(chosen, mapping));
+        if (response.ok) {
+          setError(null);
+          setFileName(chosen.name);
+          setFile(chosen);
+          setResult(null);
+          setAnalysis(response.data as Analysis);
+        } else {
+          fail(response.error);
+        }
+      } catch {
+        fail("The file could not be uploaded. Check that it is a CSV file under 2 MB.");
       }
     });
   }
 
-  async function onFile(file: File | undefined) {
+  function onFile(input: HTMLInputElement) {
+    const file = input.files?.[0];
+    // Clearing the input lets the same file be chosen again after fixing it.
+    input.value = "";
     if (!file) return;
-    setResult(null);
-    setFileName(file.name);
-    const content = await file.text();
-    setText(content);
-    preview(content);
+    if (file.size > MAX_FILE_BYTES) {
+      fail(`"${file.name}" is larger than 2 MB. Split it into smaller files.`);
+      return;
+    }
+    preview(file);
   }
 
   function changeMapping(header: string, field: string) {
-    if (!analysis || !text) return;
+    if (!analysis || !file) return;
     const mapping = { ...analysis.mapping, [header]: field || null };
-    preview(text, mapping);
+    preview(file, mapping);
   }
 
   function runImport() {
-    if (!analysis || !text) return;
+    if (!analysis || !file) return;
     startTransition(async () => {
-      const response = await importContactsAction(text, analysis.mapping);
-      if (response.ok) {
-        setResult({ created: response.data.created, summary: response.data.summary });
-        setAnalysis(response.data as Analysis);
-        toast.success(`Imported ${response.data.created} contacts`);
-      } else {
-        toast.error(response.error);
+      try {
+        const response = await importContactsAction(upload(file, analysis.mapping));
+        if (response.ok) {
+          setError(null);
+          setResult({ created: response.data.created, summary: response.data.summary });
+          setAnalysis(response.data as Analysis);
+          toast.success(`Imported ${response.data.created} contacts`);
+        } else {
+          fail(response.error);
+        }
+      } catch {
+        fail("The import could not be sent. Check that the file is under 2 MB and try again.");
       }
     });
   }
@@ -111,7 +144,7 @@ export function ImportWizard({ fields }: { fields: Array<{ key: string; label: s
               accept=".csv,text/csv"
               className="sr-only"
               aria-label="CSV file"
-              onChange={(event) => void onFile(event.target.files?.[0])}
+              onChange={(event) => onFile(event.currentTarget)}
             />
           </label>
           <a
@@ -123,6 +156,15 @@ export function ImportWizard({ fields }: { fields: Array<{ key: string; label: s
           </a>
           {pending ? <Loader2 className="size-4 animate-spin text-muted-foreground" /> : null}
         </div>
+        {error ? (
+          <p
+            role="alert"
+            className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+            data-testid="import-error"
+          >
+            {error}
+          </p>
+        ) : null}
       </section>
 
       {analysis ? (
@@ -206,7 +248,7 @@ export function ImportWizard({ fields }: { fields: Array<{ key: string; label: s
                       </TableCell>
                       <TableCell className="text-sm whitespace-normal">
                         {row.status === "ready"
-                          ? `${row.data.firstName} ${row.data.lastName}${row.data.email ? ` · ${row.data.email}` : ""}${row.data.companyName ? ` · ${row.data.companyName}` : ""}`
+                          ? `${fullName(row.data)}${row.data.email ? ` · ${row.data.email}` : ""}${row.data.companyName ? ` · ${row.data.companyName}` : ""}`
                           : row.status === "duplicate"
                             ? `${row.email} — ${row.reason}`
                             : row.messages.join(" ")}

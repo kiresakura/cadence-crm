@@ -130,8 +130,13 @@ export function initials(name: string): string {
     .join("");
 }
 
+const CJK_NAME = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+
+/** "Ada Lovelace", but "王小明" for Chinese, Japanese and Korean names (family name first). */
 export function fullName(person: { firstName: string; lastName: string }): string {
-  return `${person.firstName} ${person.lastName}`.trim();
+  return CJK_NAME.test(person.firstName) || CJK_NAME.test(person.lastName)
+    ? `${person.lastName}${person.firstName}`
+    : `${person.firstName} ${person.lastName}`;
 }
 
 export const TAG_COLOR_CLASSES: Record<string, string> = {

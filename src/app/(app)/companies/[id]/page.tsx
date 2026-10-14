@@ -12,7 +12,7 @@ import { NewTaskButton, TaskList } from "@/components/records/tasks";
 import { Timeline } from "@/components/records/timeline";
 import { ActivityForm } from "@/components/records/timeline-client";
 import { Button } from "@/components/ui/button";
-import { COMPANY_SIZE_LABELS, formatCalendarDate, formatMoney } from "@/lib/format";
+import { COMPANY_SIZE_LABELS, formatCalendarDate, formatMoney, fullName } from "@/lib/format";
 import { NotFoundError } from "@/server/errors";
 import { requirePageContext } from "@/server/next/request";
 import { can } from "@/server/permissions";
@@ -103,7 +103,7 @@ export default async function CompanyPage({ params }: PageProps<"/companies/[id]
                         href={`/contacts/${contact.id}`}
                         className="text-sm font-medium hover:text-primary hover:underline"
                       >
-                        {contact.firstName} {contact.lastName}
+                        {fullName(contact)}
                       </Link>
                       <p className="truncate text-xs text-muted-foreground">
                         {contact.jobTitle ?? contact.email ?? "—"}

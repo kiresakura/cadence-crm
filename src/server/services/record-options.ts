@@ -1,4 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { fullName } from "@/lib/format";
 
 import { db } from "../db";
 import { assertCan, type Ctx } from "../permissions";
@@ -26,7 +27,7 @@ type ContactRow = Prisma.ContactGetPayload<{ select: typeof contactSelect }>;
 function contactToOption(contact: ContactRow): RecordOption {
   return {
     id: contact.id,
-    label: `${contact.firstName} ${contact.lastName}`,
+    label: fullName(contact),
     detail: contact.company?.name ?? contact.email ?? null,
   };
 }

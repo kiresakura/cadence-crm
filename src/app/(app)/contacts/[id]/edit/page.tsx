@@ -7,6 +7,7 @@ import { NotFoundError } from "@/server/errors";
 import { requirePageContext } from "@/server/next/request";
 import { can } from "@/server/permissions";
 import { contactToInput, getContact } from "@/server/services/contacts";
+import { fullName } from "@/lib/format";
 
 import { loadContactFormData } from "../../form-data";
 
@@ -24,7 +25,7 @@ export default async function EditContactPage({ params }: PageProps<"/contacts/[
   return (
     <>
       <PageHeader
-        title={`Edit ${contact.firstName} ${contact.lastName}`}
+        title={`Edit ${fullName(contact)}`}
         backHref={`/contacts/${id}`}
         backLabel="Back to contact"
       />

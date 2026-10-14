@@ -9,6 +9,7 @@ import { db, type DbClient } from "../db";
 import {
   applyMapping,
   isImportFieldKey,
+  MAX_IMPORT_BYTES,
   parseCsv,
   splitFullName,
   suggestMapping,
@@ -81,12 +82,18 @@ export function sanitizeMapping(headers: readonly string[], mapping: unknown): C
   return result;
 }
 
-function rowCandidate(row: MappedRow) {
-  const values = { ...row.values };
+/** Row values ready for validation, or an error when a full name cannot be split. */
+function rowCandidate(row: MappedRow): Record<string, string | undefined> | { error: string } {
+  const values: Record<string, string | undefined> = { ...row.values };
   if (values.fullName && !values.firstName && !values.lastName) {
-    const { firstName, lastName } = splitFullName(values.fullName);
-    values.firstName = firstName;
-    values.lastName = lastName;
+    const split = splitFullName(values.fullName);
+    if (!split) {
+      return {
+        error: `Could not split the full name "${values.fullName}" into a first and last name. Add both, or use separate first and last name columns.`,
+      };
+    }
+    values.firstName = split.firstName;
+    values.lastName = split.lastName;
   }
   delete values.fullName;
   return values;
@@ -98,11 +105,11 @@ async function analyze(
   text: string,
   requestedMapping?: unknown,
 ): Promise<ImportAnalysis> {
-  const { headers, rows } = parseCsv(text);
+  const { headers, rows, rowNumbers } = parseCsv(text);
   const mapping = requestedMapping
     ? sanitizeMapping(headers, requestedMapping)
     : suggestMapping(headers);
-  const mapped = applyMapping(rows, mapping);
+  const mapped = applyMapping(rows, mapping, rowNumbers);
 
   const mappedFields = new Set(Object.values(mapping));
   const hasName =
@@ -131,7 +138,11 @@ async function analyze(
 
   const seen = new Set<string>();
   const results: ImportRowResult[] = mapped.map((row) => {
-    const parsed = importRowSchema.safeParse(rowCandidate(row));
+    const candidate = rowCandidate(row);
+    if ("error" in candidate && typeof candidate.error === "string") {
+      return { rowNumber: row.rowNumber, status: "error", messages: [candidate.error] };
+    }
+    const parsed = importRowSchema.safeParse(candidate);
     if (!parsed.success) {
       const messages = Object.values(zodFieldErrors(parsed.error)).flat();
       return { rowNumber: row.rowNumber, status: "error", messages };
@@ -174,6 +185,29 @@ async function analyze(
     },
     unknownTags: [...unknownTags].sort(),
   };
+}
+
+/**
+ * Reads the CSV file and optional column mapping posted by the import wizard. The file travels
+ * as multipart form data: React refuses action arguments with strings over a million
+ * characters, which a 2 MB file can exceed.
+ */
+export async function readImportUpload(
+  formData: FormData,
+): Promise<{ text: string; mapping: unknown }> {
+  const file = formData.get("file");
+  if (!(file instanceof Blob)) throw new ValidationError("Choose a CSV file.");
+  if (file.size > MAX_IMPORT_BYTES) throw new ValidationError("The file is larger than 2 MB.");
+  const rawMapping = formData.get("mapping");
+  let mapping: unknown;
+  if (typeof rawMapping === "string" && rawMapping) {
+    try {
+      mapping = JSON.parse(rawMapping);
+    } catch {
+      throw new ValidationError("The column mapping could not be read.");
+    }
+  }
+  return { text: await file.text(), mapping };
 }
 
 /** Parses the file and reports what an import would do, without writing anything. */

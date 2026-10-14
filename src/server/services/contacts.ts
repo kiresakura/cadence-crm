@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { Prisma } from "@/generated/prisma/client";
 import { LifecycleStage } from "@/generated/prisma/enums";
+import { fullName } from "@/lib/format";
 
 import { diffFields, recordAudit } from "../audit";
 import { db, type DbClient } from "../db";
@@ -191,7 +192,7 @@ export async function createContact(ctx: Ctx, rawInput: unknown) {
       action: "contact.created",
       entityType: "contact",
       entityId: contact.id,
-      changes: { name: `${contact.firstName} ${contact.lastName}`, email: contact.email },
+      changes: { name: fullName(contact), email: contact.email },
     });
     return contact;
   });
@@ -244,7 +245,7 @@ export async function deleteContact(ctx: Ctx, id: string): Promise<void> {
       action: "contact.deleted",
       entityType: "contact",
       entityId: existing.id,
-      changes: { name: `${existing.firstName} ${existing.lastName}`, email: existing.email },
+      changes: { name: fullName(existing), email: existing.email },
     });
   });
 }

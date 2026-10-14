@@ -9,29 +9,58 @@ export const CONTACT_IMPORT_FIELDS = [
   {
     key: "firstName",
     label: "First name",
-    aliases: ["first name", "firstname", "first", "given name"],
+    aliases: ["first name", "firstname", "first", "given name", "名", "名字"],
   },
   {
     key: "lastName",
     label: "Last name",
-    aliases: ["last name", "lastname", "last", "surname", "family name"],
+    aliases: ["last name", "lastname", "last", "surname", "family name", "姓", "姓氏"],
   },
   {
     key: "fullName",
     label: "Full name",
-    aliases: ["name", "full name", "contact name", "contact"],
+    aliases: ["name", "full name", "contact name", "contact", "姓名", "全名"],
   },
-  { key: "email", label: "Email", aliases: ["email", "e mail", "email address", "work email"] },
+  {
+    key: "email",
+    label: "Email",
+    aliases: [
+      "email",
+      "e mail",
+      "email address",
+      "work email",
+      "電子郵件",
+      "電子信箱",
+      "信箱",
+      "电子邮件",
+      "电子信箱",
+      "邮箱",
+    ],
+  },
   {
     key: "phone",
     label: "Phone",
-    aliases: ["phone", "phone number", "mobile", "telephone", "tel"],
+    aliases: [
+      "phone",
+      "phone number",
+      "mobile",
+      "telephone",
+      "tel",
+      "電話",
+      "手機",
+      "电话",
+      "手机",
+    ],
   },
-  { key: "jobTitle", label: "Job title", aliases: ["job title", "title", "position", "role"] },
+  {
+    key: "jobTitle",
+    label: "Job title",
+    aliases: ["job title", "title", "position", "role", "職稱", "职称"],
+  },
   {
     key: "companyName",
     label: "Company",
-    aliases: ["company", "company name", "organization", "organisation", "account"],
+    aliases: ["company", "company name", "organization", "organisation", "account", "公司"],
   },
   {
     key: "lifecycleStage",
@@ -39,7 +68,7 @@ export const CONTACT_IMPORT_FIELDS = [
     aliases: ["lifecycle stage", "lifecycle", "status"],
   },
   { key: "source", label: "Source", aliases: ["source", "lead source", "channel"] },
-  { key: "tags", label: "Tags", aliases: ["tags", "labels"] },
+  { key: "tags", label: "Tags", aliases: ["tags", "labels", "標籤", "标签"] },
 ] as const;
 
 export type ImportFieldKey = (typeof CONTACT_IMPORT_FIELDS)[number]["key"];
@@ -52,33 +81,60 @@ export function isImportFieldKey(value: string): value is ImportFieldKey {
   return FIELD_KEYS.has(value);
 }
 
+/** "  Ｅ-mail " -> "e mail": NFKC, lower case, letters and digits of any script. */
 function normalizeHeader(header: string): string {
   return header
+    .normalize("NFKC")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }
 
-export function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
-  if (text.length > MAX_IMPORT_BYTES) {
+export interface ParsedCsv {
+  headers: string[];
+  rows: Record<string, string>[];
+  /** Spreadsheet row of each entry in `rows`; the header is row 1 and blank rows still count. */
+  rowNumbers: number[];
+}
+
+export function parseCsv(text: string): ParsedCsv {
+  if (Buffer.byteLength(text, "utf8") > MAX_IMPORT_BYTES) {
     throw new ValidationError("The file is larger than 2 MB.");
   }
-  const result = Papa.parse<Record<string, string>>(text.replace(/^﻿/, ""), {
-    header: true,
-    skipEmptyLines: "greedy",
-    transformHeader: (header) => header.trim(),
+  // Records are read without skipping blank lines so row numbers match the spreadsheet.
+  const result = Papa.parse<string[]>(text.replace(/^\uFEFF/, ""), {
+    header: false,
+    skipEmptyLines: false,
   });
-  const headers = (result.meta.fields ?? []).filter((header) => header.length > 0);
+  const [headerRow = [], ...records] = result.data;
+  const columns = headerRow.map((header) => header.trim());
+  const headers = columns.filter((header) => header.length > 0);
   if (headers.length === 0) {
     throw new ValidationError("The file has no header row.");
   }
-  if (new Set(headers.map(normalizeHeader)).size !== headers.length) {
-    throw new ValidationError("The header row contains duplicate column names.");
+  // Only identical names clash; "名字" and "姓氏" are different columns.
+  const repeated = headers.filter((header, index) => headers.indexOf(header) !== index);
+  if (repeated.length > 0) {
+    throw new ValidationError(
+      `The header row contains duplicate column names: ${[...new Set(repeated)].join(", ")}.`,
+    );
   }
-  if (result.data.length > MAX_IMPORT_ROWS) {
+
+  const rows: Record<string, string>[] = [];
+  const rowNumbers: number[] = [];
+  records.forEach((record, index) => {
+    if (record.every((cell) => cell.trim() === "")) return;
+    const row = new Map<string, string>();
+    columns.forEach((header, column) => {
+      if (header) row.set(header, record[column] ?? "");
+    });
+    rows.push(Object.fromEntries(row));
+    rowNumbers.push(index + 2);
+  });
+  if (rows.length > MAX_IMPORT_ROWS) {
     throw new ValidationError(`Import at most ${MAX_IMPORT_ROWS} rows at a time.`);
   }
-  return { headers, rows: result.data };
+  return { headers, rows, rowNumbers };
 }
 
 /** Guesses which CRM field each CSV column holds, using common header spellings. */
@@ -102,24 +158,77 @@ export function suggestMapping(headers: readonly string[]): ColumnMapping {
 export function applyMapping(
   rows: readonly Record<string, string>[],
   mapping: ColumnMapping,
+  rowNumbers?: readonly number[],
 ): MappedRow[] {
   return rows.map((row, index) => {
     const values: Partial<Record<ImportFieldKey, string>> = {};
     for (const [header, field] of Object.entries(mapping)) {
       if (!field) continue;
-      const value = row[header]?.trim();
+      const value = Object.hasOwn(row, header) ? row[header]?.trim() : undefined;
       if (value) values[field] = value;
     }
     // Row 1 is the header, so data starts on row 2.
-    return { rowNumber: index + 2, values };
+    return { rowNumber: rowNumbers?.[index] ?? index + 2, values };
   });
 }
 
-/** Splits "Ada Lovelace" into first and last name; a single word becomes the first name. */
-export function splitFullName(fullName: string): { firstName: string; lastName: string } {
-  const parts = fullName.trim().split(/\s+/);
-  if (parts.length === 1) return { firstName: parts[0] ?? "", lastName: "" };
-  return { firstName: parts.slice(0, -1).join(" "), lastName: parts.at(-1) ?? "" };
+const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+const HAN_NAME = /^\p{Script=Han}{2,4}$/u;
+
+// Two-character Chinese family names, in traditional and simplified forms.
+const COMPOUND_SURNAMES = new Set([
+  "歐陽",
+  "欧阳",
+  "司馬",
+  "司马",
+  "上官",
+  "諸葛",
+  "诸葛",
+  "東方",
+  "东方",
+  "皇甫",
+  "尉遲",
+  "尉迟",
+  "公孫",
+  "公孙",
+  "慕容",
+  "長孫",
+  "长孙",
+  "宇文",
+  "司徒",
+  "令狐",
+  "夏侯",
+  "端木",
+  "張簡",
+  "张简",
+  "范姜",
+]);
+
+/**
+ * Splits a full name into first and last name, or returns null when that cannot be done
+ * safely (a single Latin word, a single character, or a long unspaced name).
+ *
+ * - Latin script: the last word is the last name ("Mary Ann Evans" -> "Mary Ann" + "Evans").
+ * - Chinese, Japanese and Korean: the family name comes first. With a space, the first word is
+ *   the family name ("山田 太郎"); without one, 2–4 Han characters are split after the first
+ *   character, or after a known two-character family name ("歐陽娜娜" -> "歐陽" + "娜娜").
+ */
+export function splitFullName(fullName: string): { firstName: string; lastName: string } | null {
+  const name = fullName.trim();
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (CJK.test(name)) {
+    if (parts.length > 1) return { lastName: parts[0]!, firstName: parts.slice(1).join(" ") };
+    if (!HAN_NAME.test(name)) return null;
+    const characters = [...name];
+    const surnameLength =
+      characters.length >= 3 && COMPOUND_SURNAMES.has(characters.slice(0, 2).join("")) ? 2 : 1;
+    return {
+      lastName: characters.slice(0, surnameLength).join(""),
+      firstName: characters.slice(surnameLength).join(""),
+    };
+  }
+  if (parts.length < 2) return null;
+  return { firstName: parts.slice(0, -1).join(" "), lastName: parts.at(-1)! };
 }
 
 /**

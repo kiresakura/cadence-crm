@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
   // The Docker image runs the minimal standalone server; local `next start` uses the regular output.
   output: process.env.BUILD_STANDALONE === "1" ? "standalone" : undefined,
   poweredByHeader: false,
+  experimental: {
+    // CSV imports send the file (up to 2 MB, plus JSON escaping) to a server action.
+    serverActions: { bodySizeLimit: "3mb" },
+  },
   turbopack: {
     rules: {
       "*.css": {

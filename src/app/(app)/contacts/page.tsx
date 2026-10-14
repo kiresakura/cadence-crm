@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { LIFECYCLE_LABELS, formatDate } from "@/lib/format";
+import { formatDate, fullName, LIFECYCLE_LABELS } from "@/lib/format";
 import { requirePageContext } from "@/server/next/request";
 import { can } from "@/server/permissions";
 import { listContacts, parseContactFilters } from "@/server/services/contacts";
@@ -169,7 +169,7 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
                       href={`/contacts/${contact.id}`}
                       className="font-medium hover:text-primary hover:underline"
                     >
-                      {contact.firstName} {contact.lastName}
+                      {fullName(contact)}
                     </Link>
                     <p className="text-xs text-muted-foreground">
                       {contact.email ?? contact.phone ?? "—"}
