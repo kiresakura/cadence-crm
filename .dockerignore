@@ -13,3 +13,4 @@ docs
 !.env.example
 npm-debug.log*
 *.tsbuildinfo
+*.md
