@@ -24,7 +24,7 @@ export function TagPicker({
             <label
               key={tag.id}
               className={cn(
-                "inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-transparent px-2.5 py-1 text-xs font-medium opacity-60 transition has-checked:border-current has-checked:opacity-100 has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                "inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-dashed border-current/40 px-2.5 py-1 text-xs font-medium transition has-checked:border-solid has-checked:border-current has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
                 TAG_COLOR_CLASSES[tag.color] ?? TAG_COLOR_CLASSES.slate,
               )}
             >

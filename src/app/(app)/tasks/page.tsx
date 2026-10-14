@@ -72,7 +72,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
                   "rounded-full bg-muted px-1.5 text-xs tabular-nums",
                   option === "overdue" &&
                     (countFor.overdue ?? 0) > 0 &&
-                    "bg-destructive/10 text-destructive",
+                    "bg-destructive/10 text-red-700 dark:text-red-200",
                 )}
               >
                 {countFor[option]}

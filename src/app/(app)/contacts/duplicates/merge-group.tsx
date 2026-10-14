@@ -88,7 +88,7 @@ export function MergeGroup({
             key={contact.id}
             className={cn(
               "rounded-lg border p-3 text-sm transition",
-              keepId === contact.id && "border-primary bg-primary/5",
+              keepId === contact.id && "border-primary ring-1 ring-primary",
               !included.has(contact.id) && "opacity-60",
             )}
           >
@@ -118,7 +118,7 @@ export function MergeGroup({
               </label>
               {keepId === contact.id ? <Badge>Keep</Badge> : null}
             </div>
-            <dl className="mt-2 grid gap-1 text-xs text-muted-foreground">
+            <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
               <div>{contact.email ?? "No email"}</div>
               <div>{contact.phone ?? "No phone"}</div>
               <div>{[contact.jobTitle, contact.company].filter(Boolean).join(" at ") || "—"}</div>
@@ -126,7 +126,7 @@ export function MergeGroup({
                 Added {contact.created} · {contact.counts.activities} activities ·{" "}
                 {contact.counts.tasks} tasks · {contact.counts.deals} deals
               </div>
-            </dl>
+            </div>
           </div>
         ))}
       </fieldset>

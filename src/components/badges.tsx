@@ -47,7 +47,7 @@ export function PriorityBadge({ priority }: { priority: TaskPriority }) {
       className={cn(
         "text-xs font-medium",
         priority === "HIGH" && "text-red-600 dark:text-red-400",
-        priority === "MEDIUM" && "text-amber-600 dark:text-amber-400",
+        priority === "MEDIUM" && "text-amber-700 dark:text-amber-400",
         priority === "LOW" && "text-muted-foreground",
       )}
     >
