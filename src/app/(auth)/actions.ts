@@ -14,15 +14,9 @@ import {
   readSessionToken,
   setSessionCookie,
 } from "@/server/next/request";
+import { safeNext } from "@/server/safe-redirect";
 import { formToObject } from "@/server/validation/common";
 import { createWorkspace, switchWorkspace } from "@/server/services/workspaces";
-
-/** Only same-site relative paths are allowed as post-login destinations. */
-function safeNext(value: FormDataEntryValue | null): string {
-  return typeof value === "string" && value.startsWith("/") && !value.startsWith("//")
-    ? value
-    : "/dashboard";
-}
 
 export async function loginAction(formData: FormData): Promise<ActionResult> {
   try {
