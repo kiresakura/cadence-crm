@@ -34,7 +34,11 @@ const importRowSchema = z.object({
     .toUpperCase()
     .optional()
     .transform((value) => (value ? value : "LEAD"))
-    .pipe(z.enum(LifecycleStage, { error: "Use Lead, Prospect, Customer or Churned." })),
+    .pipe(
+      z.enum(LifecycleStage, {
+        error: "Lifecycle stage must be Lead, Prospect, Customer or Churned.",
+      }),
+    ),
   source: optionalText(80),
   tags: z
     .string()
@@ -129,9 +133,7 @@ async function analyze(
   const results: ImportRowResult[] = mapped.map((row) => {
     const parsed = importRowSchema.safeParse(rowCandidate(row));
     if (!parsed.success) {
-      const messages = Object.entries(zodFieldErrors(parsed.error)).map(
-        ([field, errors]) => `${field}: ${errors.join(" ")}`,
-      );
+      const messages = Object.values(zodFieldErrors(parsed.error)).flat();
       return { rowNumber: row.rowNumber, status: "error", messages };
     }
     const email = parsed.data.email;

@@ -83,9 +83,8 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
           <span className="flex items-center gap-2">
             <Copy className="size-4" />
             {duplicates.length === 1
-              ? "1 possible duplicate"
-              : `${duplicates.length} possible duplicates`}{" "}
-            share this email or phone number.
+              ? "1 possible duplicate shares this email or phone number."
+              : `${duplicates.length} possible duplicates share this email or phone number.`}
           </span>
           <Button size="sm" variant="outline" asChild>
             <Link href="/contacts/duplicates">Review and merge</Link>
