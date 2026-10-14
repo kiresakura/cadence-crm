@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut, UserRound } from "lucide-react";
+import Link from "next/link";
 
 import { logoutAction } from "@/app/(auth)/actions";
 import { UserAvatar } from "@/components/badges";
@@ -34,6 +35,11 @@ export function UserMenu({ name, email, role }: { name: string; email: string; r
           <span className="block truncate text-xs text-muted-foreground">{email}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/account">
+            <UserRound className="size-4" /> Account
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => void logoutAction()}>
           <LogOut className="size-4" /> Sign out
         </DropdownMenuItem>

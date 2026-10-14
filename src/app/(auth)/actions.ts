@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import type { ActionResult } from "@/lib/action-result";
-import { login, registerUser } from "@/server/auth/service";
+import { changePassword, login, registerUser, updateProfile } from "@/server/auth/service";
 import { deleteSessionByToken, setSessionWorkspace } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { toActionError } from "@/server/next/action";
@@ -74,4 +74,27 @@ export async function createWorkspaceAction(formData: FormData): Promise<ActionR
   }
   revalidatePath("/", "layout");
   redirect("/dashboard");
+}
+
+export async function updateProfileAction(formData: FormData): Promise<ActionResult> {
+  try {
+    const request = await getRequestContext();
+    if (!request) return { ok: false, error: "Please sign in again." };
+    await updateProfile(request.user.id, formToObject(formData));
+  } catch (error) {
+    return toActionError(error);
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, data: null };
+}
+
+export async function changePasswordAction(formData: FormData): Promise<ActionResult> {
+  try {
+    const request = await getRequestContext();
+    if (!request) return { ok: false, error: "Please sign in again." };
+    await changePassword(request.user.id, request.sessionId, formToObject(formData));
+  } catch (error) {
+    return toActionError(error);
+  }
+  return { ok: true, data: null };
 }

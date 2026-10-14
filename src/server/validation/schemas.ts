@@ -49,6 +49,23 @@ export const registerSchema = z.object({
   timezone: z.string().trim().max(64).optional(),
 });
 
+export const profileSchema = z.object({
+  name: requiredText("Name", 100),
+  timezone: z.string().trim().min(1, "Choose a time zone.").max(64),
+});
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z
+      .string({ error: "Enter your current password." })
+      .min(1, "Enter your current password."),
+    newPassword: password,
+  })
+  .refine((value) => value.currentPassword !== value.newPassword, {
+    message: "Choose a password you have not used here.",
+    path: ["newPassword"],
+  });
+
 export const workspaceSchema = z.object({
   name: requiredText("Workspace name", 80),
 });

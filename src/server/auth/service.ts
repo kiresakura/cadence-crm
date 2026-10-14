@@ -5,7 +5,12 @@ import { AppError, ConflictError, ValidationError, parseInput } from "../errors"
 import { RateLimiter } from "../rate-limit";
 import { isValidTimeZone } from "../domain/tasks";
 import { insertWorkspace } from "../services/workspaces";
-import { loginSchema, registerSchema } from "../validation/schemas";
+import {
+  changePasswordSchema,
+  loginSchema,
+  profileSchema,
+  registerSchema,
+} from "../validation/schemas";
 import { getDummyHash, hashPassword, verifyPassword } from "./password";
 import { createSession } from "./session";
 
@@ -91,4 +96,34 @@ export async function login(rawInput: unknown): Promise<SignedInSession> {
     workspaceId: membership?.workspaceId ?? null,
   });
   return { ...session, userId: user.id, workspaceId: membership?.workspaceId ?? null };
+}
+
+/** Updates the signed-in user's display name and time zone. */
+export async function updateProfile(userId: string, rawInput: unknown) {
+  const input = parseInput(profileSchema, rawInput);
+  if (!isValidTimeZone(input.timezone)) {
+    throw ValidationError.forField("timezone", "Choose a valid time zone.");
+  }
+  return db.user.update({
+    where: { id: userId },
+    data: { name: input.name, timezone: input.timezone },
+    select: { id: true, name: true, timezone: true },
+  });
+}
+
+/**
+ * Changes the password after verifying the current one, then signs out every other session
+ * so a leaked temporary password stops working everywhere else.
+ */
+export async function changePassword(userId: string, currentSessionId: string, rawInput: unknown) {
+  const input = parseInput(changePasswordSchema, rawInput);
+  const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
+  if (!(await verifyPassword(user.passwordHash, input.currentPassword))) {
+    throw ValidationError.forField("currentPassword", "Your current password is not correct.");
+  }
+  const passwordHash = await hashPassword(input.newPassword);
+  await db.$transaction([
+    db.user.update({ where: { id: userId }, data: { passwordHash } }),
+    db.session.deleteMany({ where: { userId, id: { not: currentSessionId } } }),
+  ]);
 }
