@@ -134,6 +134,18 @@ describe("updates after a definition becomes stricter", () => {
     ).toEqual({ "customFields.region": ["Region is required."] });
   });
 
+  it("drops unchanged values of deleted definitions instead of refusing the update", () => {
+    expect(
+      validateCustomFieldValues(stricter, { retired: "old", tier: "Beta" }, { retired: "old" }),
+    ).toEqual({ tier: "Beta" });
+    // A new value for a field that does not exist is still an error.
+    expect(
+      fieldErrors(() =>
+        validateCustomFieldValues(stricter, { retired: "new" }, { retired: "old" }),
+      ),
+    ).toEqual({ "customFields.retired": ["Unknown custom field."] });
+  });
+
   it("still requires required fields on create", () => {
     expect(fieldErrors(() => validateCustomFieldValues(stricter, {}))).toEqual({
       "customFields.region": ["Region is required."],

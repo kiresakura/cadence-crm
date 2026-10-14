@@ -76,7 +76,8 @@ function isUnchanged(raw: unknown, stored: unknown): boolean {
 /**
  * Validates submitted custom field values against the workspace's definitions.
  *
- * - Keys without a definition are rejected.
+ * - Keys without a definition are rejected, unless an update sends back the stored value of a
+ *   deleted definition unchanged.
  * - Values are coerced to their declared type (form posts send strings).
  * - On update (`existing` given), values the input does not mention are kept, and so are
  *   values that did not change, without re-validating them. A select option removed later or
@@ -96,7 +97,12 @@ export function validateCustomFieldValues(
   const known = new Set(definitions.map((definition) => definition.key));
 
   for (const key of Object.keys(input)) {
-    if (!known.has(key)) errors[`customFields.${key}`] = ["Unknown custom field."];
+    if (known.has(key)) continue;
+    // A value of a deleted definition sent back unchanged (the edit form and the API PATCH
+    // send stored values) is dropped; a new value for an unknown key is an error.
+    const stored = existing && Object.hasOwn(existing, key) ? existing[key] : undefined;
+    if (existing && isUnchanged(input[key], stored)) continue;
+    errors[`customFields.${key}`] = ["Unknown custom field."];
   }
 
   const values = new Map<string, CustomFieldValue>();

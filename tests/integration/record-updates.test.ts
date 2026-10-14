@@ -14,7 +14,11 @@ import {
   getContact,
   updateContact,
 } from "@/server/services/contacts";
-import { createFieldDefinition, updateFieldDefinition } from "@/server/services/custom-fields";
+import {
+  createFieldDefinition,
+  deleteFieldDefinition,
+  updateFieldDefinition,
+} from "@/server/services/custom-fields";
 import { createDeal, dealToInput, getDeal, updateDeal } from "@/server/services/deals";
 import { ownerOptions, removeMember } from "@/server/services/members";
 import { createTask, updateTask } from "@/server/services/tasks";
@@ -64,6 +68,25 @@ describe("updates keep values that were valid when saved", () => {
     await expect(
       updateContact(ws.member, contact.id, { ...current, customFields: { [field.key]: "Gamma" } }),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("saves records that still hold values of a deleted field", async () => {
+    const field = await createFieldDefinition(ws.admin, {
+      entityType: "CONTACT",
+      label: "Old note",
+      type: "TEXT",
+    });
+    const contact = await createContact(ws.member, {
+      firstName: "Old",
+      lastName: "Field",
+      customFields: { [field.key]: "kept around" },
+    });
+    await deleteFieldDefinition(ws.admin, field.id);
+    // What the JSON API PATCH sends: the stored values plus one change.
+    const current = contactToInput(await getContact(ws.member, contact.id));
+    const updated = await updateContact(ws.member, contact.id, { ...current, jobTitle: "CEO" });
+    expect(updated.jobTitle).toBe("CEO");
+    expect(updated.customFields).not.toHaveProperty(field.key);
   });
 
   it("keeps an empty value of a field that became required later", async () => {
