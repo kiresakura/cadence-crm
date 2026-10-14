@@ -95,7 +95,8 @@ export async function findDuplicatesOf(ctx: Ctx, contactId: string) {
     "Contact",
   );
   const or: Prisma.ContactWhereInput[] = [];
-  if (contact.email) or.push({ email: { equals: contact.email, mode: "insensitive" } });
+  // Emails are stored lower-cased; an exact match avoids LIKE wildcards in addresses ("j_doe").
+  if (contact.email) or.push({ email: contact.email.toLowerCase() });
   if (contact.phoneNormalized) or.push({ phoneNormalized: contact.phoneNormalized });
   if (or.length === 0) return [];
   return db.contact.findMany({
@@ -137,6 +138,31 @@ async function findConflicts(tx: DbClient, ctx: Ctx, kept: ContactRow, merged: C
     lines.push(
       `${label} ${field === "lifecycleStage" ? LIFECYCLE_LABELS[merged.lifecycleStage] : mergedValue}`,
     );
+  }
+  // Links: the company and the owner, recorded by name.
+  for (const [field, label, lookup] of [
+    [
+      "companyId",
+      "company",
+      (ids: string[]) =>
+        tx.company.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }),
+    ],
+    [
+      "ownerId",
+      "owner",
+      (ids: string[]) =>
+        tx.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }),
+    ],
+  ] as const) {
+    const keptId = kept[field];
+    const mergedId = merged[field];
+    if (!keptId || !mergedId || keptId === mergedId) continue;
+    const names = new Map((await lookup([keptId, mergedId])).map((row) => [row.id, row.name]));
+    conflicts[label] = {
+      kept: names.get(keptId) ?? keptId,
+      merged: names.get(mergedId) ?? mergedId,
+    };
+    lines.push(`${label} ${names.get(mergedId) ?? mergedId}`);
   }
   const keptFields = asJsonObject(kept.customFields);
   const mergedFields = asJsonObject(merged.customFields);
@@ -277,22 +303,25 @@ export async function mergeDuplicateGroup(ctx: Ctx, rawInput: unknown) {
   const separator = input.key.indexOf(":");
   const kind = input.key.slice(0, separator);
   const value = input.key.slice(separator + 1);
-  return db.$transaction(async (tx) => {
-    const members = await tx.contact.findMany({
-      where: {
-        workspaceId: ctx.workspaceId,
-        id: { in: [input.keepId, ...mergeIds] },
-        ...(kind === "email"
-          ? { email: { equals: value, mode: "insensitive" as const } }
-          : { phoneNormalized: value }),
-      },
-      select: { id: true },
-    });
-    if (members.length !== mergeIds.length + 1) {
-      throw new ValidationError("Every contact must belong to this duplicate group.");
-    }
-    let result = null;
-    for (const mergeId of mergeIds) result = await mergeInto(tx, ctx, input.keepId, mergeId);
-    return result!;
-  });
+  return db.$transaction(
+    async (tx) => {
+      const members = await tx.contact.findMany({
+        where: {
+          workspaceId: ctx.workspaceId,
+          id: { in: [input.keepId, ...mergeIds] },
+          // Exact matches only: `%` or `_` in the key must not act as wildcards.
+          ...(kind === "email" ? { email: value.toLowerCase() } : { phoneNormalized: value }),
+        },
+        select: { id: true },
+      });
+      if (members.length !== mergeIds.length + 1) {
+        throw new ValidationError("Every contact must belong to this duplicate group.");
+      }
+      let result = null;
+      for (const mergeId of mergeIds) result = await mergeInto(tx, ctx, input.keepId, mergeId);
+      return result!;
+    },
+    // Large groups merge many contacts in one transaction; allow more than the 5 s default.
+    { timeout: 30_000 },
+  );
 }

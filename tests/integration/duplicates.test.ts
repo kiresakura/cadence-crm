@@ -16,7 +16,7 @@ import {
 import { createTag } from "@/server/services/tags";
 import { createTask } from "@/server/services/tasks";
 
-import { createTestWorkspace, stageByName, type TestWorkspace } from "./helpers";
+import { createTestWorkspace, stageByName, type TestWorkspace, uid } from "./helpers";
 
 describe("duplicate detection and merge", () => {
   let ws: TestWorkspace;
@@ -253,6 +253,9 @@ describe("merging a duplicate group", () => {
       { key, keepId: a.id, mergeIds: [] },
       { key: "name:x", keepId: a.id, mergeIds: [b.id] },
       { key: "phone:123", keepId: a.id, mergeIds: [b.id] },
+      // Wildcards must not stand in for the shared value.
+      { key: "email:%", keepId: a.id, mergeIds: [unrelated.id] },
+      { key: "email:_@g.example", keepId: a.id, mergeIds: [b.id] },
     ]) {
       await expect(mergeDuplicateGroup(ws.member, input)).rejects.toBeInstanceOf(ValidationError);
     }
@@ -261,5 +264,93 @@ describe("merging a duplicate group", () => {
     await expect(
       mergeDuplicateGroup(ws.viewer, { key, keepId: a.id, mergeIds: [b.id] }),
     ).rejects.toThrow(/permission/);
+  });
+
+  it("merges a large group in one go even when the database is slow", async () => {
+    const ws = await createTestWorkspace();
+    await db.contact.createMany({
+      data: Array.from({ length: 13 }, (_, index) => ({
+        workspaceId: ws.workspaceId,
+        firstName: `Copy ${index}`,
+        lastName: "Many",
+        email: "many@copies.example",
+      })),
+    });
+    const [keep, ...rest] = await db.contact.findMany({
+      where: { workspaceId: ws.workspaceId },
+      select: { id: true },
+    });
+    // Each merge step waits half a second in the database, like a distant server under load:
+    // twelve merges take longer than the five seconds a transaction gets by default.
+    const slow = `slow_audit_${uid()}`;
+    await db.$executeRawUnsafe(
+      `CREATE FUNCTION ${slow}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_sleep(0.5); RETURN NEW; END $$`,
+    );
+    await db.$executeRawUnsafe(
+      `CREATE TRIGGER ${slow} BEFORE INSERT ON "AuditLog" FOR EACH ROW WHEN (NEW."workspaceId" = '${ws.workspaceId}') EXECUTE FUNCTION ${slow}()`,
+    );
+    try {
+      await mergeDuplicateGroup(ws.member, {
+        key: "email:many@copies.example",
+        keepId: keep!.id,
+        mergeIds: rest.map((contact) => contact.id),
+      });
+    } finally {
+      await db.$executeRawUnsafe(`DROP TRIGGER ${slow} ON "AuditLog"`);
+      await db.$executeRawUnsafe(`DROP FUNCTION ${slow}()`);
+    }
+    expect(await db.contact.count({ where: { workspaceId: ws.workspaceId } })).toBe(1);
+  });
+});
+
+describe("duplicate details", () => {
+  it("matches email addresses exactly, without wildcards", async () => {
+    const ws = await createTestWorkspace();
+    const underscore = await createContact(ws.member, {
+      firstName: "J",
+      lastName: "Under",
+      email: "j_doe@x.example",
+    });
+    await createContact(ws.member, { firstName: "J", lastName: "Dot", email: "j.doe@x.example" });
+    expect(await findDuplicatesOf(ws.viewer, underscore.id)).toEqual([]);
+  });
+
+  it("records a different company and owner instead of dropping them", async () => {
+    const ws = await createTestWorkspace();
+    const acme = await createCompany(ws.member, { name: "Acme" });
+    const globex = await createCompany(ws.member, { name: "Globex" });
+    const keep = await createContact(ws.member, {
+      firstName: "Pat",
+      lastName: "Kept",
+      email: "pat@shared.example",
+      companyId: acme.id,
+      ownerId: ws.member.userId,
+    });
+    const merge = await createContact(ws.member, {
+      firstName: "Pat",
+      lastName: "Other",
+      email: "pat@shared.example",
+      companyId: globex.id,
+      ownerId: ws.admin.userId,
+    });
+    await mergeDuplicateGroup(ws.member, {
+      key: "email:pat@shared.example",
+      keepId: keep.id,
+      mergeIds: [merge.id],
+    });
+    const audit = await db.auditLog.findFirstOrThrow({
+      where: { entityId: keep.id, action: "contact.merged" },
+    });
+    expect(audit.changes).toMatchObject({
+      conflicts: {
+        company: { kept: "Acme", merged: "Globex" },
+        owner: { kept: "member", merged: "admin" },
+      },
+    });
+    const note = await db.activity.findFirstOrThrow({
+      where: { contactId: keep.id, type: "NOTE" },
+    });
+    expect(note.body).toContain("company Globex");
+    expect(note.body).toContain("owner admin");
   });
 });
