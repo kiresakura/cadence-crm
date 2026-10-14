@@ -11,6 +11,7 @@ import { normalizePhone } from "../domain/phone";
 import { parseInput } from "../errors";
 import { assertCan, type Ctx } from "../permissions";
 import { contactSchema, type ContactInput } from "../validation/schemas";
+import { deleteOnlyLinked } from "./deletion";
 import {
   asJsonObject,
   assertCompanyRef,
@@ -240,12 +241,13 @@ export async function deleteContact(ctx: Ctx, id: string): Promise<void> {
       await tx.contact.findFirst({ where: { id, workspaceId: ctx.workspaceId } }),
       "Contact",
     );
+    const removed = await deleteOnlyLinked(tx, ctx, "contact", existing.id);
     await tx.contact.delete({ where: { id: existing.id } });
     await recordAudit(tx, ctx, {
       action: "contact.deleted",
       entityType: "contact",
       entityId: existing.id,
-      changes: { name: fullName(existing), email: existing.email },
+      changes: { name: fullName(existing), email: existing.email, removed },
     });
   });
 }

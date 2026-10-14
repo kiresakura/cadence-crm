@@ -12,13 +12,14 @@ import { NewTaskButton, TaskList } from "@/components/records/tasks";
 import { Timeline } from "@/components/records/timeline";
 import { ActivityForm } from "@/components/records/timeline-client";
 import { Button } from "@/components/ui/button";
-import { formatCalendarDate, formatDate, formatMoney, fullName } from "@/lib/format";
+import { deletionNote, formatCalendarDate, formatDate, formatMoney, fullName } from "@/lib/format";
 import { NotFoundError } from "@/server/errors";
 import { requirePageContext } from "@/server/next/request";
 import { can } from "@/server/permissions";
 import { listTimeline } from "@/server/services/activities";
 import { getContact } from "@/server/services/contacts";
 import { listFieldDefinitions } from "@/server/services/custom-fields";
+import { deletionImpact } from "@/server/services/deletion";
 import { findDuplicatesOf } from "@/server/services/duplicates";
 import { memberOptions } from "@/server/services/members";
 import { listTasksFor } from "@/server/services/tasks";
@@ -39,12 +40,13 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
-  const [timeline, tasks, fields, duplicates, members] = await Promise.all([
+  const [timeline, tasks, fields, duplicates, members, impact] = await Promise.all([
     listTimeline(ctx, { contactId: id }),
     listTasksFor(ctx, { contactId: id }),
     listFieldDefinitions(ctx, "CONTACT"),
     findDuplicatesOf(ctx, id),
     memberOptions(ctx),
+    deletionImpact(ctx, "contact", id),
   ]);
   const canWrite = can(ctx.role, "records:write");
   const name = fullName(contact);
@@ -69,7 +71,7 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
               <ConfirmDelete
                 action={deleteContactAction.bind(null, id)}
                 title={`Delete ${name}?`}
-                description="Their activities, tasks and deals stay in the workspace but lose this link. This cannot be undone."
+                description={`Their deals stay in the workspace without this contact. ${deletionNote(impact, "contact")}`}
                 redirectTo="/contacts"
                 successMessage="Contact deleted"
               />

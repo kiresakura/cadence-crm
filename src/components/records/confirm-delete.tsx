@@ -27,6 +27,7 @@ export function ConfirmDelete({
   redirectTo,
   successMessage = "Deleted",
   label = "Delete",
+  iconLabel,
 }: {
   action: () => Promise<ActionResult<unknown>>;
   title: string;
@@ -34,15 +35,23 @@ export function ConfirmDelete({
   redirectTo?: string;
   successMessage?: string;
   label?: string;
+  /** Renders a compact icon button with this accessible name instead of a labelled one. */
+  iconLabel?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" disabled={pending}>
-          <Trash2 /> {label}
-        </Button>
+        {iconLabel ? (
+          <Button variant="ghost" size="icon-sm" aria-label={iconLabel} disabled={pending}>
+            <Trash2 />
+          </Button>
+        ) : (
+          <Button variant="destructive" disabled={pending}>
+            <Trash2 /> {label}
+          </Button>
+        )}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

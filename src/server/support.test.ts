@@ -148,6 +148,18 @@ describe("validation helpers", () => {
     expect(Object.getPrototypeOf(fields)).toBe(Object.prototype);
   });
 
+  it("accepts only well-formed thousands separators in amounts", () => {
+    expect(moneySchema.parse("1,234.56")).toBe("1234.56");
+    expect(moneySchema.parse(" 1 000 ")).toBe("1000");
+    expect(moneySchema.parse("1 234 567.5")).toBe("1234567.5");
+    expect(moneySchema.parse("1234")).toBe("1234");
+    for (const bad of ["12,50", "1,2,3", "1,23,456", "1 23", "1,000 000", ",100", "1,000,"]) {
+      const result = moneySchema.safeParse(bad);
+      expect(result.success, bad).toBe(false);
+      expect(result.error?.issues[0]?.message).toMatch(/thousands/);
+    }
+  });
+
   it("normalises money, dates and emails", () => {
     expect(moneySchema.parse("12,500.5")).toBe("12500.5");
     expect(moneySchema.safeParse("-1").success).toBe(false);

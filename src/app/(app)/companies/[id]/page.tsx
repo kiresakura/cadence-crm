@@ -12,10 +12,17 @@ import { NewTaskButton, TaskList } from "@/components/records/tasks";
 import { Timeline } from "@/components/records/timeline";
 import { ActivityForm } from "@/components/records/timeline-client";
 import { Button } from "@/components/ui/button";
-import { COMPANY_SIZE_LABELS, formatCalendarDate, formatMoney, fullName } from "@/lib/format";
+import {
+  COMPANY_SIZE_LABELS,
+  deletionNote,
+  formatCalendarDate,
+  formatMoney,
+  fullName,
+} from "@/lib/format";
 import { NotFoundError } from "@/server/errors";
 import { requirePageContext } from "@/server/next/request";
 import { can } from "@/server/permissions";
+import { deletionImpact } from "@/server/services/deletion";
 import { listTimeline } from "@/server/services/activities";
 import { getCompany } from "@/server/services/companies";
 import { listFieldDefinitions } from "@/server/services/custom-fields";
@@ -40,11 +47,12 @@ export default async function CompanyPage({ params }: PageProps<"/companies/[id]
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
-  const [timeline, tasks, fields, members] = await Promise.all([
+  const [timeline, tasks, fields, members, impact] = await Promise.all([
     listTimeline(ctx, { companyId: id }),
     listTasksFor(ctx, { companyId: id }),
     listFieldDefinitions(ctx, "COMPANY"),
     memberOptions(ctx),
+    deletionImpact(ctx, "company", id),
   ]);
   const canWrite = can(ctx.role, "records:write");
 
@@ -66,7 +74,7 @@ export default async function CompanyPage({ params }: PageProps<"/companies/[id]
               <ConfirmDelete
                 action={deleteCompanyAction.bind(null, id)}
                 title={`Delete ${company.name}?`}
-                description="Its contacts, deals, activities and tasks are kept but no longer linked to the company."
+                description={`Its contacts and deals stay without the company. ${deletionNote(impact, "company")}`}
                 redirectTo="/companies"
                 successMessage="Company deleted"
               />

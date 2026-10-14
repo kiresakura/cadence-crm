@@ -12,11 +12,18 @@ import { NewTaskButton, TaskList } from "@/components/records/tasks";
 import { Timeline } from "@/components/records/timeline";
 import { ActivityForm } from "@/components/records/timeline-client";
 import { Button } from "@/components/ui/button";
-import { formatCalendarDate, formatDateTime, formatMoney, fullName } from "@/lib/format";
+import {
+  deletionNote,
+  formatCalendarDate,
+  formatDateTime,
+  formatMoney,
+  fullName,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { NotFoundError } from "@/server/errors";
 import { requirePageContext } from "@/server/next/request";
 import { can } from "@/server/permissions";
+import { deletionImpact } from "@/server/services/deletion";
 import { listTimeline } from "@/server/services/activities";
 import { listFieldDefinitions } from "@/server/services/custom-fields";
 import { getDeal } from "@/server/services/deals";
@@ -40,11 +47,12 @@ export default async function DealPage({ params }: PageProps<"/deals/[id]">) {
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
-  const [timeline, tasks, fields, members] = await Promise.all([
+  const [timeline, tasks, fields, members, impact] = await Promise.all([
     listTimeline(ctx, { dealId: id }),
     listTasksFor(ctx, { dealId: id }),
     listFieldDefinitions(ctx, "DEAL"),
     memberOptions(ctx),
+    deletionImpact(ctx, "deal", id),
   ]);
   const canWrite = can(ctx.role, "records:write");
   const amount = formatMoney(deal.amount.toString(), deal.currency);
@@ -79,7 +87,7 @@ export default async function DealPage({ params }: PageProps<"/deals/[id]">) {
               <ConfirmDelete
                 action={deleteDealAction.bind(null, id)}
                 title={`Delete "${deal.title}"?`}
-                description="Activities and tasks linked to this deal are kept but lose the link."
+                description={deletionNote(impact, "deal")}
                 redirectTo="/deals"
                 successMessage="Deal deleted"
               />

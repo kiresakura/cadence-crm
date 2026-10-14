@@ -8,6 +8,7 @@ import { validateCustomFieldValues } from "../domain/custom-fields";
 import { parseInput } from "../errors";
 import { assertCan, type Ctx } from "../permissions";
 import { companySchema, type CompanyInput } from "../validation/schemas";
+import { deleteOnlyLinked } from "./deletion";
 import {
   asJsonObject,
   assertMemberRef,
@@ -202,13 +203,15 @@ export async function deleteCompany(ctx: Ctx, id: string): Promise<void> {
       await tx.company.findFirst({ where: { id, workspaceId: ctx.workspaceId } }),
       "Company",
     );
-    // Contacts, deals, activities and tasks keep existing; their company link is cleared.
+    // Contacts and deals keep existing without the company; activities and tasks that only
+    // belonged to it are deleted, the others just lose the link.
+    const removed = await deleteOnlyLinked(tx, ctx, "company", existing.id);
     await tx.company.delete({ where: { id: existing.id } });
     await recordAudit(tx, ctx, {
       action: "company.deleted",
       entityType: "company",
       entityId: existing.id,
-      changes: { name: existing.name },
+      changes: { name: existing.name, removed },
     });
   });
 }

@@ -16,7 +16,8 @@ export default async function TagsSettingsPage() {
         id: tag.id,
         name: tag.name,
         color: tag.color,
-        usage: tag._count.contacts + tag._count.companies,
+        contacts: tag._count.contacts,
+        companies: tag._count.companies,
       }))}
     />
   );

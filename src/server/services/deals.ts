@@ -11,6 +11,7 @@ import { ValidationError, parseInput } from "../errors";
 import { assertCan, type Ctx } from "../permissions";
 import { dateOnlyToDate, dateToDateOnly } from "../validation/common";
 import { dealSchema, moveDealSchema, type DealInput } from "../validation/schemas";
+import { deleteOnlyLinked } from "./deletion";
 import {
   asJsonObject,
   assertCompanyRef,
@@ -349,12 +350,13 @@ export async function deleteDeal(ctx: Ctx, id: string): Promise<void> {
       await tx.deal.findFirst({ where: { id, workspaceId: ctx.workspaceId } }),
       "Deal",
     );
+    const removed = await deleteOnlyLinked(tx, ctx, "deal", existing.id);
     await tx.deal.delete({ where: { id: existing.id } });
     await recordAudit(tx, ctx, {
       action: "deal.deleted",
       entityType: "deal",
       entityId: existing.id,
-      changes: { title: existing.title, amount: existing.amount },
+      changes: { title: existing.title, amount: existing.amount, removed },
     });
   });
 }

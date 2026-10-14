@@ -1,15 +1,14 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
-import { toast } from "sonner";
 
 import { TagBadge } from "@/components/badges";
 import { FormError, NativeSelect, SubmitButton } from "@/components/form";
 import { EmptyState } from "@/components/page";
-import { Button } from "@/components/ui/button";
+import { ConfirmDelete } from "@/components/records/confirm-delete";
 import { Input } from "@/components/ui/input";
+import { countOf } from "@/lib/format";
 import { useActionForm } from "@/lib/use-action-form";
 
 import { createTagAction, deleteTagAction, updateTagAction } from "../actions";
@@ -33,9 +32,25 @@ function ColorSelect({ defaultValue }: { defaultValue: string }) {
   );
 }
 
-function TagRow({ tag }: { tag: { id: string; name: string; color: string; usage: number } }) {
+interface TagView {
+  id: string;
+  name: string;
+  color: string;
+  contacts: number;
+  companies: number;
+}
+
+function usageText(tag: TagView): string {
+  if (tag.contacts + tag.companies === 0) return "No contact or company uses it.";
+  const parts = [
+    tag.contacts > 0 ? countOf(tag.contacts, "contact") : null,
+    tag.companies > 0 ? countOf(tag.companies, "company", "companies") : null,
+  ].filter(Boolean);
+  return `It will be removed from ${parts.join(" and ")}; the records themselves stay.`;
+}
+
+function TagRow({ tag }: { tag: TagView }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
   const form = useActionForm(updateTagAction.bind(null, tag.id), {
     successMessage: "Tag saved",
     onSuccess: () => router.refresh(),
@@ -48,41 +63,24 @@ function TagRow({ tag }: { tag: { id: string; name: string; color: string; usage
         </span>
         <Input name="name" defaultValue={tag.name} aria-label="Tag name" className="w-48" />
         <ColorSelect defaultValue={tag.color} />
-        <span className="text-xs text-muted-foreground">Used {tag.usage}×</span>
+        <span className="text-xs text-muted-foreground">Used {tag.contacts + tag.companies}×</span>
         <SubmitButton pending={form.pending} variant="outline" size="sm">
           Save
         </SubmitButton>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={`Delete tag ${tag.name}`}
-          disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              const result = await deleteTagAction(tag.id);
-              if (result.ok) {
-                toast.success("Tag deleted");
-                router.refresh();
-              } else {
-                toast.error(result.error);
-              }
-            })
-          }
-        >
-          <Trash2 />
-        </Button>
+        <ConfirmDelete
+          action={deleteTagAction.bind(null, tag.id)}
+          title={`Delete the tag "${tag.name}"?`}
+          description={usageText(tag)}
+          successMessage="Tag deleted"
+          iconLabel={`Delete tag ${tag.name}`}
+        />
       </form>
       <FormError message={form.formError} />
     </li>
   );
 }
 
-export function TagEditor({
-  tags,
-}: {
-  tags: Array<{ id: string; name: string; color: string; usage: number }>;
-}) {
+export function TagEditor({ tags }: { tags: TagView[] }) {
   const router = useRouter();
   const add = useActionForm(createTagAction, {
     successMessage: "Tag created",

@@ -121,6 +121,24 @@ export function toDateTimeLocal(value: Date | string | null | undefined, timeZon
   return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
 }
 
+/** "1 task", "3 activities". */
+export function countOf(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+/** Confirmation text for deleting a record and the activities and tasks only it holds. */
+export function deletionNote(impact: { activities: number; tasks: number }, kind: string): string {
+  const parts = [
+    impact.activities > 0 ? countOf(impact.activities, "activity", "activities") : null,
+    impact.tasks > 0 ? countOf(impact.tasks, "task") : null,
+  ].filter(Boolean);
+  const removed =
+    parts.length > 0
+      ? `This also deletes ${parts.join(" and ")} that only belong to this ${kind}. `
+      : "";
+  return `${removed}Activities and tasks linked to other records stay there. This cannot be undone.`;
+}
+
 export function initials(name: string): string {
   return name
     .split(/\s+/)

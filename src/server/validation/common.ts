@@ -40,12 +40,34 @@ export const idList = z
   .default([])
   .transform((ids) => [...new Set(ids)]);
 
-/** A non-negative money amount with at most two decimals, normalised to a string like "1200.50". */
+// "1,234,567.89" or "1 234 567.89": separators only between groups of three digits.
+const GROUPED_AMOUNT = /^\d{1,3}(?:(?:,\d{3})+|(?: \d{3})+)(?:\.\d{1,2})?$/;
+
+/**
+ * A non-negative money amount with at most two decimals, normalised to a string like "1200.50".
+ * Commas and spaces are accepted only as thousands separators, so "12,50" or "1,2,3" are
+ * refused instead of being read as 1250 or 123.
+ */
 export const moneySchema = z
   .union([z.string(), z.number()], { error: "Enter an amount." })
-  .transform((value) => String(value).replace(/[,\s]/g, ""))
-  .refine((value) => /^\d{1,12}(\.\d{1,2})?$/.test(value), {
-    message: "Enter a positive amount with up to two decimals.",
+  .transform((value, ctx) => {
+    const text = String(value)
+      .trim()
+      .replace(/[\u00a0\u202f]/g, " ");
+    if (/[, ]/.test(text) && !GROUPED_AMOUNT.test(text)) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Commas and spaces can only separate thousands, e.g. 1,234.56. Use a point for decimals.",
+      });
+      return z.NEVER;
+    }
+    const plain = text.replace(/[, ]/g, "");
+    if (!/^\d{1,12}(\.\d{1,2})?$/.test(plain)) {
+      ctx.addIssue({ code: "custom", message: "Enter a positive amount with up to two decimals." });
+      return z.NEVER;
+    }
+    return plain;
   });
 
 export const currencySchema = z
