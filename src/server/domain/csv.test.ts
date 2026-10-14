@@ -137,6 +137,18 @@ describe("row numbers", () => {
     ).toEqual([2, 3, 6]);
   });
 
+  it("skip blank lines above the header and keep counting them", () => {
+    const { headers, rows, rowNumbers } = parseCsv(
+      "\n,\nFirst name,Last name\nAda,Lovelace\n\nGrace,Hopper\n",
+    );
+    expect(headers).toEqual(["First name", "Last name"]);
+    expect(rows).toEqual([
+      { "First name": "Ada", "Last name": "Lovelace" },
+      { "First name": "Grace", "Last name": "Hopper" },
+    ]);
+    expect(rowNumbers).toEqual([4, 6]);
+  });
+
   it("count a quoted multi-line cell as one row", () => {
     const text = 'Name,Notes\nAda Lovelace,"line one\nline two"\nGrace Hopper,x\n';
     expect(parseCsv(text).rowNumbers).toEqual([2, 3]);

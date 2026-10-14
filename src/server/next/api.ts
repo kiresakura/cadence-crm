@@ -73,7 +73,11 @@ export async function readJson(request: NextRequest): Promise<unknown> {
     }
   }
   try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    return JSON.parse(
+      Buffer.concat(chunks)
+        .toString("utf8")
+        .replace(/^\uFEFF/, ""),
+    );
   } catch {
     throw new AppError("BAD_REQUEST", "Request body must be valid JSON.");
   }

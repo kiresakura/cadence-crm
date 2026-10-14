@@ -106,8 +106,10 @@ export function parseCsv(text: string): ParsedCsv {
     header: false,
     skipEmptyLines: false,
   });
-  const [headerRow = [], ...records] = result.data;
-  const columns = headerRow.map((header) => header.trim());
+  const isBlank = (record: string[]) => record.every((cell) => cell.trim() === "");
+  // Blank lines above the header are skipped, but still count for row numbers.
+  const headerIndex = result.data.findIndex((record) => !isBlank(record));
+  const columns = (result.data[headerIndex] ?? []).map((header) => header.trim());
   const headers = columns.filter((header) => header.length > 0);
   if (headers.length === 0) {
     throw new ValidationError("The file has no header row.");
@@ -122,14 +124,14 @@ export function parseCsv(text: string): ParsedCsv {
 
   const rows: Record<string, string>[] = [];
   const rowNumbers: number[] = [];
-  records.forEach((record, index) => {
-    if (record.every((cell) => cell.trim() === "")) return;
+  result.data.forEach((record, index) => {
+    if (index <= headerIndex || isBlank(record)) return;
     const row = new Map<string, string>();
     columns.forEach((header, column) => {
       if (header) row.set(header, record[column] ?? "");
     });
     rows.push(Object.fromEntries(row));
-    rowNumbers.push(index + 2);
+    rowNumbers.push(index + 1);
   });
   if (rows.length > MAX_IMPORT_ROWS) {
     throw new ValidationError(`Import at most ${MAX_IMPORT_ROWS} rows at a time.`);

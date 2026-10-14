@@ -25,8 +25,9 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      // Everything except build assets; prefetches render no HTML and need no nonce.
-      source: "/((?!_next/static|_next/image|favicon.ico).*)",
+      // Pages only. The JSON API returns no HTML, and skipping it means request bodies are not
+      // buffered here before the route can refuse them; prefetches render no HTML either.
+      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

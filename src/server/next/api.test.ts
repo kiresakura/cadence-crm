@@ -30,6 +30,12 @@ describe("JSON request bodies", () => {
     expect(MAX_JSON_BYTES).toBe(1024 * 1024);
   });
 
+  it("accepts a body that starts with a byte order mark", async () => {
+    await expect(readJson(post('\uFEFF{"firstName":"Ada"}'))).resolves.toEqual({
+      firstName: "Ada",
+    });
+  });
+
   it("rejects malformed JSON", async () => {
     await expect(readJson(post("{nope"))).rejects.toThrow("Request body must be valid JSON.");
   });
