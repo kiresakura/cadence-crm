@@ -218,6 +218,7 @@ export function MemberManager({
           with this email address can accept it.
         </p>
         <form
+          method="post"
           onSubmit={invite.onSubmit}
           className="mt-3 grid gap-3 sm:grid-cols-[1fr_9rem_auto] sm:items-end"
           noValidate

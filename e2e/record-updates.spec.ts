@@ -154,4 +154,57 @@ test.describe("record updates after settings change", () => {
     });
     expect(owner).toBe(colleagueId);
   });
+
+  test("a record owned by someone who left keeps that owner when edited", async ({ page }) => {
+    const contactId = await withDb(async (client) => {
+      const former = await client.query<{ id: string }>(
+        `INSERT INTO "User" (id, email, name, "passwordHash", "updatedAt")
+         VALUES (gen_random_uuid()::text, $1, 'Fran Former', 'not-a-hash', now()) RETURNING id`,
+        [`former.${Date.now().toString(36)}@example.com`],
+      );
+      const contact = await client.query<{ id: string }>(
+        `INSERT INTO "Contact" (id, "workspaceId", "firstName", "lastName", "ownerId", "updatedAt")
+         VALUES (gen_random_uuid()::text, $1, 'Kept', 'Owner', $2, now()) RETURNING id`,
+        [workspaceId, former.rows[0]!.id],
+      );
+      return contact.rows[0]!.id;
+    });
+    const ownerOf = () =>
+      withDb(async (client) => {
+        const { rows } = await client.query<{ ownerId: string | null }>(
+          `SELECT "ownerId" FROM "Contact" WHERE id = $1`,
+          [contactId],
+        );
+        return rows[0]!.ownerId;
+      });
+    const before = await ownerOf();
+
+    await page.goto(`/contacts/${contactId}/edit`);
+    await expect(page.getByLabel("Owner").locator("option:checked")).toHaveText(
+      "Fran Former (no longer a member)",
+    );
+    await page.getByLabel("Job title").fill("Buyer");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page).toHaveURL(new RegExp(`/contacts/${contactId}$`));
+    expect(await ownerOf()).toBe(before);
+  });
+
+  test("a legacy field keyed like an object built-in shows no stray value", async ({ page }) => {
+    const contactId = await withDb(async (client) => {
+      await client.query(
+        `INSERT INTO "CustomFieldDefinition" (id, "workspaceId", "entityType", key, label, type, "updatedAt")
+         VALUES (gen_random_uuid()::text, $1, 'CONTACT', 'constructor', 'Builder', 'TEXT', now())`,
+        [workspaceId],
+      );
+      const contact = await client.query<{ id: string }>(
+        `INSERT INTO "Contact" (id, "workspaceId", "firstName", "lastName", "updatedAt")
+         VALUES (gen_random_uuid()::text, $1, 'No', 'Value', now()) RETURNING id`,
+        [workspaceId],
+      );
+      return contact.rows[0]!.id;
+    });
+    await page.goto(`/contacts/${contactId}`);
+    await expect(page.getByText("No Value").first()).toBeVisible();
+    await expect(page.getByText(/function Object|native code/)).toHaveCount(0);
+  });
 });

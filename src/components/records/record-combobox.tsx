@@ -48,6 +48,8 @@ export function RecordCombobox({
   const [text, setText] = useState(initial?.label ?? "");
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<RecordOption[]>([]);
+  // The query the shown options belong to; Enter only picks from results for the current text.
+  const [optionsQuery, setOptionsQuery] = useState<string | null>(null);
   const [active, setActive] = useState(-1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +66,7 @@ export function RecordCombobox({
       const result = await search(query, selectedId);
       if (cancelled) return;
       setLoading(false);
+      setOptionsQuery(query);
       if (result.ok) {
         setError(null);
         setOptions(result.data);
@@ -110,9 +113,13 @@ export function RecordCombobox({
       const step = event.key === "ArrowDown" ? 1 : -1;
       setActive((current) => (current + step + options.length) % options.length);
     } else if (event.key === "Enter") {
+      // Enter that confirms an input-method composition (Chinese, Japanese …) is not a choice.
+      if (event.nativeEvent.isComposing || event.keyCode === 229) return;
       if (!open) return;
-      // Enter picks the highlighted option instead of submitting the form.
+      // Enter picks the highlighted option instead of submitting the form, but only once the
+      // results for the current text have arrived.
       event.preventDefault();
+      if (loading || optionsQuery !== query) return;
       const option = options[active];
       if (option) choose(option);
     } else if (event.key === "Escape") {
@@ -169,6 +176,8 @@ export function RecordCombobox({
         aria-label={label}
         hidden={!open}
         className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border bg-popover p-1 text-sm shadow-md"
+        // Keep focus in the input when the list (or its scrollbar) is pressed.
+        onMouseDown={(event) => event.preventDefault()}
       >
         {options.map((option, index) => (
           <li
@@ -181,8 +190,6 @@ export function RecordCombobox({
               index === active && "bg-muted",
               option.id === selectedId && "font-medium",
             )}
-            // Keep focus in the input so blur does not close the list before the click lands.
-            onMouseDown={(event) => event.preventDefault()}
             onMouseEnter={() => setActive(index)}
             onClick={() => choose(option)}
           >

@@ -26,7 +26,7 @@ export function ActivityForm({
     },
   });
   return (
-    <form onSubmit={onSubmit} className="grid gap-3" noValidate>
+    <form method="post" onSubmit={onSubmit} className="grid gap-3" noValidate>
       <FormError message={formError} />
       {Object.entries(link).map(([key, value]) =>
         value ? <input key={key} type="hidden" name={key} value={value} /> : null,

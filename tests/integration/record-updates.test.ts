@@ -16,7 +16,7 @@ import {
 } from "@/server/services/contacts";
 import { createFieldDefinition, updateFieldDefinition } from "@/server/services/custom-fields";
 import { createDeal, dealToInput, getDeal, updateDeal } from "@/server/services/deals";
-import { removeMember } from "@/server/services/members";
+import { ownerOptions, removeMember } from "@/server/services/members";
 import { createTask, updateTask } from "@/server/services/tasks";
 
 import {
@@ -264,5 +264,17 @@ describe("removing a member hands over their work", () => {
     expect(
       (await db.contact.findUniqueOrThrow({ where: { id: elsewhereContact.id } })).ownerId,
     ).toBe(elsewhere.owner.userId);
+  });
+});
+
+describe("owner pickers", () => {
+  it("list a departed owner of the record so saving keeps them", async () => {
+    const ws = await createTestWorkspace();
+    const former = await createUser("Fran Former");
+    const options = await ownerOptions(ws.viewer, former.id);
+    expect(options.at(-1)).toEqual({ id: former.id, label: "Fran Former (no longer a member)" });
+    expect(options.filter((option) => option.id === ws.admin.userId)).toHaveLength(1);
+    expect(await ownerOptions(ws.viewer, ws.admin.userId)).toEqual(await ownerOptions(ws.viewer));
+    expect(await ownerOptions(ws.viewer, "missing-user")).toEqual(await ownerOptions(ws.viewer));
   });
 });

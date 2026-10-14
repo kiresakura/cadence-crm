@@ -23,6 +23,22 @@ export async function memberOptions(ctx: Ctx) {
   return members.map((member) => ({ id: member.user.id, label: member.user.name }));
 }
 
+/**
+ * Members for a record's owner picker, plus the record's current owner when they have left the
+ * workspace, so saving an unrelated change keeps the owner instead of clearing it.
+ */
+export async function ownerOptions(ctx: Ctx, currentOwnerId?: string | null) {
+  const members = await memberOptions(ctx);
+  if (!currentOwnerId || members.some((member) => member.id === currentOwnerId)) return members;
+  const former = await db.user.findUnique({
+    where: { id: currentOwnerId },
+    select: { id: true, name: true },
+  });
+  return former
+    ? [...members, { id: former.id, label: `${former.name} (no longer a member)` }]
+    : members;
+}
+
 function assertCanAssignRole(ctx: Ctx, role: Role) {
   if (role === "OWNER" && ctx.role !== "OWNER") {
     throw new ForbiddenError("Only owners can grant the owner role.");

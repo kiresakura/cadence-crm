@@ -15,7 +15,7 @@ export function RenameWorkspaceForm({ name }: { name: string }) {
     onSuccess: () => router.refresh(),
   });
   return (
-    <form onSubmit={onSubmit} className="flex max-w-md flex-col gap-3" noValidate>
+    <form method="post" onSubmit={onSubmit} className="flex max-w-md flex-col gap-3" noValidate>
       <FormError message={formError} />
       <Field label="Name" htmlFor="workspace-rename" error={errorFor("name")}>
         <Input

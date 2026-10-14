@@ -83,7 +83,7 @@ export function WorkspaceSwitcher({
               Workspaces keep data completely separate. You will be its owner.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={form.onSubmit} className="grid gap-4" noValidate>
+          <form method="post" onSubmit={form.onSubmit} className="grid gap-4" noValidate>
             <FormError message={form.formError} />
             <Field label="Name" htmlFor="new-workspace-name" error={form.errorFor("name")}>
               <Input

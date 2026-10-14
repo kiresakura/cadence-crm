@@ -66,7 +66,12 @@ function StageRow({ stage, first, last }: { stage: StageView; first: boolean; la
   });
   return (
     <li className="grid gap-2 py-2">
-      <form onSubmit={form.onSubmit} className="flex flex-wrap items-center gap-2" noValidate>
+      <form
+        method="post"
+        onSubmit={form.onSubmit}
+        className="flex flex-wrap items-center gap-2"
+        noValidate
+      >
         <div className="flex flex-col">
           <Button
             type="button"
@@ -155,7 +160,12 @@ export function PipelineEditor({
   return (
     <section className="rounded-xl border bg-card" aria-label={`${pipeline.name} pipeline`}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
-        <form onSubmit={rename.onSubmit} className="flex items-center gap-2" noValidate>
+        <form
+          method="post"
+          onSubmit={rename.onSubmit}
+          className="flex items-center gap-2"
+          noValidate
+        >
           <Input
             name="name"
             defaultValue={pipeline.name}
@@ -187,6 +197,7 @@ export function PipelineEditor({
           ))}
         </ol>
         <form
+          method="post"
           onSubmit={add.onSubmit}
           className="flex flex-wrap items-center gap-2 border-t py-3"
           noValidate
@@ -227,7 +238,12 @@ export function NewPipelineForm() {
     },
   });
   return (
-    <form onSubmit={onSubmit} className="grid gap-2 rounded-xl border border-dashed p-4" noValidate>
+    <form
+      method="post"
+      onSubmit={onSubmit}
+      className="grid gap-2 rounded-xl border border-dashed p-4"
+      noValidate
+    >
       <p className="text-sm font-medium">Add a pipeline</p>
       <p className="text-xs text-muted-foreground">New pipelines start with the default stages.</p>
       <div className="flex gap-2">

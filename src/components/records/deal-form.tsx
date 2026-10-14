@@ -69,7 +69,7 @@ export function DealForm({
   });
 
   return (
-    <form onSubmit={onSubmit} className="grid max-w-3xl gap-6" noValidate>
+    <form method="post" onSubmit={onSubmit} className="grid max-w-3xl gap-6" noValidate>
       <FormError message={formError} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field

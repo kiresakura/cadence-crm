@@ -68,6 +68,7 @@ export function CloseDealButtons({
               </DialogDescription>
             </DialogHeader>
             <form
+              method="post"
               className="grid gap-4"
               onSubmit={(event) => {
                 event.preventDefault();

@@ -20,7 +20,7 @@ export default async function EditCompanyPage({ params }: PageProps<"/companies/
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
-  const data = await loadCompanyFormData(ctx);
+  const data = await loadCompanyFormData(ctx, company.ownerId);
   return (
     <>
       <PageHeader

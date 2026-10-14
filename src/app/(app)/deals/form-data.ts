@@ -1,19 +1,19 @@
 import type { Ctx } from "@/server/permissions";
 import { listFieldDefinitions } from "@/server/services/custom-fields";
-import { memberOptions } from "@/server/services/members";
+import { ownerOptions } from "@/server/services/members";
 import { listPipelines } from "@/server/services/pipelines";
 import { companyOption, contactOption } from "@/server/services/record-options";
 
 /** Everything the deal form needs; pickers start with only the linked records. */
 export async function loadDealFormData(
   ctx: Ctx,
-  linked: { companyId: string | null; primaryContactId: string | null },
+  linked: { companyId: string | null; primaryContactId: string | null; ownerId?: string | null },
 ) {
   const [pipelines, company, primaryContact, members, fields] = await Promise.all([
     listPipelines(ctx),
     companyOption(ctx, linked.companyId),
     contactOption(ctx, linked.primaryContactId),
-    memberOptions(ctx),
+    ownerOptions(ctx, linked.ownerId),
     listFieldDefinitions(ctx, "DEAL"),
   ]);
   return {

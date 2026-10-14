@@ -74,3 +74,22 @@ test("the change-password and invitation forms never send passwords in the URL",
   expect(invite.url()).not.toMatch(/password|not-in-the-url/);
   await visitor.close();
 });
+
+test("record forms never put their values in the URL before hydration", async ({ browser }) => {
+  const withScript = await browser.newContext();
+  const page = await withScript.newPage();
+  await signIn(page, "owner@demo.local");
+  const storageState = await withScript.storageState();
+  await withScript.close();
+
+  const context = await browser.newContext({ storageState });
+  const blocked = await context.newPage();
+  await blocked.route("**/_next/static/**", (route) => route.abort());
+  await blocked.goto("/contacts/new");
+  await blocked.getByLabel("First name").fill("Hydration");
+  await blocked.getByLabel("Last name").fill("Pending");
+  await blocked.getByRole("button", { name: "Create contact" }).click();
+  await blocked.waitForLoadState("load");
+  expect(blocked.url()).not.toContain("firstName=");
+  await context.close();
+});

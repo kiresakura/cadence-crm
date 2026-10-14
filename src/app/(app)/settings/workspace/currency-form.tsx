@@ -33,7 +33,7 @@ export function WorkspaceCurrencyForm({
     </option>
   );
   return (
-    <form onSubmit={onSubmit} className="flex max-w-md flex-col gap-3" noValidate>
+    <form method="post" onSubmit={onSubmit} className="flex max-w-md flex-col gap-3" noValidate>
       <FormError message={formError} />
       <Field
         label="Reporting currency"

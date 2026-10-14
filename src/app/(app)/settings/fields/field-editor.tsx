@@ -49,6 +49,7 @@ function DefinitionRow({ definition }: { definition: Definition }) {
   return (
     <li className="py-3">
       <form
+        method="post"
         onSubmit={form.onSubmit}
         className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start"
         noValidate
@@ -153,7 +154,12 @@ export function FieldEditor({ definitions }: { definitions: Definition[] }) {
         <p className="text-xs text-muted-foreground">
           Values are validated against the field type whenever a record is saved.
         </p>
-        <form onSubmit={add.onSubmit} className="mt-3 grid gap-3 sm:grid-cols-2" noValidate>
+        <form
+          method="post"
+          onSubmit={add.onSubmit}
+          className="mt-3 grid gap-3 sm:grid-cols-2"
+          noValidate
+        >
           <FormError message={add.formError} />
           <Field label="Applies to" htmlFor="field-entity">
             <NativeSelect id="field-entity" name="entityType" defaultValue="CONTACT">

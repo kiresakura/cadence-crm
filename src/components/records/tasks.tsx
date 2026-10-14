@@ -178,7 +178,7 @@ export function NewTaskButton({
             Tasks are assigned to you unless you pick someone else.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={onSubmit} className="grid gap-4" noValidate>
+        <form method="post" onSubmit={onSubmit} className="grid gap-4" noValidate>
           <FormError message={formError} />
           {Object.entries(link ?? {}).map(([key, value]) =>
             value ? <input key={key} type="hidden" name={key} value={value} /> : null,

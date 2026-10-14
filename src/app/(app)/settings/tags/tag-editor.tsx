@@ -57,7 +57,12 @@ function TagRow({ tag }: { tag: TagView }) {
   });
   return (
     <li className="py-2">
-      <form onSubmit={form.onSubmit} className="flex flex-wrap items-center gap-2" noValidate>
+      <form
+        method="post"
+        onSubmit={form.onSubmit}
+        className="flex flex-wrap items-center gap-2"
+        noValidate
+      >
         <span className="w-28">
           <TagBadge name={tag.name} color={tag.color} />
         </span>
@@ -108,6 +113,7 @@ export function TagEditor({ tags }: { tags: TagView[] }) {
           </ul>
         )}
         <form
+          method="post"
           onSubmit={add.onSubmit}
           className="flex flex-wrap items-center gap-2 border-t py-3"
           noValidate

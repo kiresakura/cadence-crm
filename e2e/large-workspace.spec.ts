@@ -161,4 +161,20 @@ test.describe("a workspace with more than 1,000 contacts and companies", () => {
     await expect(page.getByRole("link", { name: "Person Filler 1100" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Company 1001" }).first()).toBeVisible();
   });
+
+  test("Enter waits for the search results that match what was typed", async ({ page }) => {
+    await page.goto(`/deals/new`);
+    const contact = page.getByRole("combobox", { name: "Primary contact" });
+    await contact.focus();
+    const listbox = page.getByRole("listbox", { name: "Primary contact" });
+    await expect(listbox.getByRole("option").first()).toBeVisible();
+
+    // Typing and pressing Enter at once must not pick the highlighted row of the old list.
+    await contact.fill("zzyzx");
+    await contact.press("Enter");
+    await expect(contact).toHaveValue("zzyzx");
+    await expect(listbox.getByRole("option", { name: /Zelda Zzyzx/ })).toBeVisible();
+    await contact.press("Enter");
+    await expect(contact).toHaveValue("Zelda Zzyzx");
+  });
 });

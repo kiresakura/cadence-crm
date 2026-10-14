@@ -1,14 +1,18 @@
 import type { Ctx } from "@/server/permissions";
 import { listFieldDefinitions } from "@/server/services/custom-fields";
-import { memberOptions } from "@/server/services/members";
+import { ownerOptions } from "@/server/services/members";
 import { companyOption } from "@/server/services/record-options";
 import { listTags } from "@/server/services/tags";
 
 /** Everything the contact form needs for its pickers. */
-export async function loadContactFormData(ctx: Ctx, companyId: string | null = null) {
+export async function loadContactFormData(
+  ctx: Ctx,
+  companyId: string | null = null,
+  ownerId: string | null = null,
+) {
   const [company, members, tags, fields] = await Promise.all([
     companyOption(ctx, companyId),
-    memberOptions(ctx),
+    ownerOptions(ctx, ownerId),
     listTags(ctx),
     listFieldDefinitions(ctx, "CONTACT"),
   ]);

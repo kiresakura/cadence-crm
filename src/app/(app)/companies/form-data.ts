@@ -1,11 +1,11 @@
 import type { Ctx } from "@/server/permissions";
 import { listFieldDefinitions } from "@/server/services/custom-fields";
-import { memberOptions } from "@/server/services/members";
+import { ownerOptions } from "@/server/services/members";
 import { listTags } from "@/server/services/tags";
 
-export async function loadCompanyFormData(ctx: Ctx) {
+export async function loadCompanyFormData(ctx: Ctx, ownerId: string | null = null) {
   const [members, tags, fields] = await Promise.all([
-    memberOptions(ctx),
+    ownerOptions(ctx, ownerId),
     listTags(ctx),
     listFieldDefinitions(ctx, "COMPANY"),
   ]);

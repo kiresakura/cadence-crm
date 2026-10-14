@@ -105,6 +105,9 @@ export function customFieldItems(
 ) {
   return definitions.map((definition) => ({
     label: definition.label,
-    value: formatCustomFieldValue(definition, values[definition.key]),
+    value: formatCustomFieldValue(
+      definition,
+      Object.hasOwn(values, definition.key) ? values[definition.key] : undefined,
+    ),
   }));
 }
