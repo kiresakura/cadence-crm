@@ -55,6 +55,12 @@ test("a viewer sees no editing controls and the API refuses their writes", async
   });
   expect(move.status()).toBe(403);
 
+  // Exports are reads, so viewers may download them.
+  const csv = await page.request.get("/api/export/contacts?lifecycle=CUSTOMER");
+  expect(csv.status()).toBe(200);
+  expect(csv.headers()["content-type"]).toContain("text/csv");
+  expect(await csv.text()).toContain("First name,Last name,Email");
+
   // Admin-only pages are not available either.
   await page.goto("/settings/members");
   await expect(page.getByText("Settings are limited to admins")).toBeVisible();
