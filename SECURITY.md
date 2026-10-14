@@ -18,6 +18,10 @@ Only the latest commit on `main` receives security fixes.
 - CSV exports neutralise spreadsheet formulas; imports are size- and row-limited.
 - Every change to business data, settings and membership is written to the audit log.
 
+## Dependency advisories
+
+`npm audit --omit=dev` reports no known vulnerabilities in runtime dependencies. A full `npm audit` currently lists one advisory in lint tooling only (GHSA-vfj7-8cjw-p6xm in `braces`, pulled in through `eslint-config-next` → `fast-glob` → `micromatch`). No patched `braces` release exists yet; the package only runs during linting and never ships in the application or the Docker image. It will be updated as soon as a fix is published.
+
 ## Out of scope
 
 - The Docker Compose demo (`APP_ENV=demo`) is intended for local evaluation only. It uses well-known demo credentials and plain http.
