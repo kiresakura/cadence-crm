@@ -11,6 +11,8 @@ import {
   TaskPriority,
 } from "@/generated/prisma/enums";
 
+import { CURRENCY_CODES } from "@/lib/currencies";
+
 import { MIN_PASSWORD_LENGTH } from "../auth/password";
 import { isReservedFieldKey } from "../domain/custom-fields";
 import {
@@ -71,6 +73,14 @@ export const workspaceSchema = z.object({
   name: requiredText("Workspace name", 80),
 });
 
+export const workspaceCurrencySchema = z.object({
+  currency: z
+    .string({ error: "Choose a currency." })
+    .trim()
+    .toUpperCase()
+    .refine((code) => CURRENCY_CODES.includes(code), "Choose a currency from the list."),
+});
+
 export const contactSchema = z.object({
   firstName: requiredText("First name", 100),
   lastName: requiredText("Last name", 100),
@@ -109,7 +119,8 @@ export type CompanyInput = z.output<typeof companySchema>;
 export const dealSchema = z.object({
   title: requiredText("Title", 160),
   amount: moneySchema,
-  currency: currencySchema,
+  /** Defaults to the workspace currency. */
+  currency: currencySchema.optional(),
   pipelineId: requiredText("Pipeline", 64),
   stageId: requiredText("Stage", 64),
   companyId: optionalId,

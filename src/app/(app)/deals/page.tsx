@@ -26,7 +26,7 @@ import { searchParamsToObject } from "@/server/services/query";
 export const metadata: Metadata = { title: "Deals" };
 
 export default async function DealsPage({ searchParams }: PageProps<"/deals">) {
-  const { ctx, user } = await requirePageContext();
+  const { ctx, user, workspace } = await requirePageContext();
   const raw = searchParamsToObject(await searchParams);
   const view = raw.view === "list" ? "list" : "board";
   const canWrite = can(ctx.role, "records:write");
@@ -97,6 +97,7 @@ export default async function DealsPage({ searchParams }: PageProps<"/deals">) {
         {board.pipeline ? (
           <DealBoard
             canWrite={canWrite}
+            currency={workspace.currency}
             stages={board.stages.map(({ id, name, type, probability }) => ({
               id,
               name,

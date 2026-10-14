@@ -5,8 +5,10 @@ import { setSessionWorkspace } from "../auth/session";
 import { db, type DbClient } from "../db";
 import { ForbiddenError, parseInput } from "../errors";
 import { assertCan, type Ctx } from "../permissions";
-import { workspaceSchema } from "../validation/schemas";
+import { workspaceCurrencySchema, workspaceSchema } from "../validation/schemas";
 import { insertPipelineWithDefaults } from "./pipelines";
+
+export { CURRENCY_CODES } from "@/lib/currencies";
 
 export function slugify(name: string): string {
   const base = name
@@ -87,6 +89,30 @@ export async function renameWorkspace(ctx: Ctx, rawInput: unknown) {
       entityType: "workspace",
       entityId: workspace.id,
       changes: { name: { from: before.name, to: workspace.name } },
+    });
+    return workspace;
+  });
+}
+
+/**
+ * Sets the reporting currency used by the dashboard, board totals and new deals. Amounts are
+ * never converted: deals in other currencies are left out of totals and counted instead.
+ */
+export async function updateWorkspaceCurrency(ctx: Ctx, rawInput: unknown) {
+  assertCan(ctx, "settings:manage");
+  const input = parseInput(workspaceCurrencySchema, rawInput);
+  return db.$transaction(async (tx) => {
+    const before = await tx.workspace.findUniqueOrThrow({ where: { id: ctx.workspaceId } });
+    if (before.currency === input.currency) return before;
+    const workspace = await tx.workspace.update({
+      where: { id: ctx.workspaceId },
+      data: { currency: input.currency },
+    });
+    await recordAudit(tx, ctx, {
+      action: "workspace.currency_changed",
+      entityType: "workspace",
+      entityId: workspace.id,
+      changes: { currency: { from: before.currency, to: workspace.currency } },
     });
     return workspace;
   });

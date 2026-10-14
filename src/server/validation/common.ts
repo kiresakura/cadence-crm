@@ -52,8 +52,7 @@ export const currencySchema = z
   .string()
   .trim()
   .toUpperCase()
-  .regex(/^[A-Z]{3}$/, "Use a three-letter currency code, e.g. USD.")
-  .default("USD");
+  .regex(/^[A-Z]{3}$/, "Use a three-letter currency code, e.g. USD.");
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 

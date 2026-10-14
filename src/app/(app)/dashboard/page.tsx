@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PageHeader, Section } from "@/components/page";
 import { Timeline } from "@/components/records/timeline";
 import { formatMoney, formatPercent } from "@/lib/format";
+import { otherCurrenciesNote } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { requirePageContext } from "@/server/next/request";
 import { getDashboard } from "@/server/services/dashboard";
@@ -114,8 +115,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </div>
       {metrics.excludedOtherCurrency > 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          Amounts are in {currency}. {metrics.excludedOtherCurrency} deals in other currencies are
-          not included.
+          Amounts are in {currency}. {otherCurrenciesNote(metrics.excludedOtherCurrency)}.
         </p>
       ) : null}
 

@@ -24,7 +24,7 @@ import {
   updateStage,
 } from "@/server/services/pipelines";
 import { createTag, deleteTag, updateTag } from "@/server/services/tags";
-import { renameWorkspace } from "@/server/services/workspaces";
+import { renameWorkspace, updateWorkspaceCurrency } from "@/server/services/workspaces";
 import { formToObject } from "@/server/validation/common";
 
 function done<T>(result: T) {
@@ -137,5 +137,13 @@ export async function removeMemberAction(membershipId: string, transferToUserId:
 export async function renameWorkspaceAction(formData: FormData) {
   return done(
     await runAction(async ({ ctx }) => ({ id: (await renameWorkspace(ctx, form(formData))).id })),
+  );
+}
+
+export async function updateWorkspaceCurrencyAction(formData: FormData) {
+  return done(
+    await runAction(async ({ ctx }) => ({
+      currency: (await updateWorkspaceCurrency(ctx, form(formData))).currency,
+    })),
   );
 }

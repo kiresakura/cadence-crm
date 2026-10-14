@@ -39,6 +39,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type { StageType } from "@/generated/prisma/enums";
 import { formatMoney } from "@/lib/format";
+import { otherCurrenciesNote, totalInCurrency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 export interface BoardStage {
@@ -72,10 +73,13 @@ interface PendingLoss {
 export function DealBoard({
   stages,
   deals,
+  currency,
   canWrite,
 }: {
   stages: BoardStage[];
   deals: BoardDeal[];
+  /** Workspace reporting currency; column totals only add deals in this currency. */
+  currency: string;
   canWrite: boolean;
 }) {
   const [optimisticDeals, applyMove] = useOptimistic(
@@ -135,6 +139,7 @@ export function DealBoard({
               stage={stage}
               deals={optimisticDeals.filter((deal) => deal.stageId === stage.id)}
               stages={stages}
+              currency={currency}
               canWrite={canWrite}
               onMove={move}
             />
@@ -161,18 +166,20 @@ function Column({
   stage,
   deals,
   stages,
+  currency,
   canWrite,
   onMove,
 }: {
   stage: BoardStage;
   deals: BoardDeal[];
   stages: BoardStage[];
+  currency: string;
   canWrite: boolean;
   onMove: (deal: BoardDeal, stage: BoardStage) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id, disabled: !canWrite });
-  const total = deals.reduce((sum, deal) => sum + Number(deal.amount), 0);
-  const currency = deals[0]?.currency ?? "USD";
+  const total = totalInCurrency(deals, currency);
+  const note = otherCurrenciesNote(total.excluded);
   return (
     <section
       ref={setNodeRef}
@@ -202,9 +209,14 @@ function Column({
             <span className="font-normal text-muted-foreground">{deals.length}</span>
           </h2>
           <p className="text-xs text-muted-foreground" data-testid="column-total">
-            {formatMoney(total, currency)}
+            {formatMoney(total.amount, currency)}
             {stage.type === "OPEN" ? ` · ${stage.probability}%` : ""}
           </p>
+          {note ? (
+            <p className="text-xs text-muted-foreground" data-testid="column-other-currencies">
+              {note}
+            </p>
+          ) : null}
         </div>
       </header>
       <div className="flex min-h-32 flex-1 flex-col gap-2 p-2">

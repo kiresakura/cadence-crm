@@ -176,6 +176,7 @@ async function buildDealData(
     type: StageType;
     closedAt: Date | null;
     ownerId: string | null;
+    currency: string;
     customFields: unknown;
   } | null,
   now = new Date(),
@@ -202,7 +203,15 @@ async function buildDealData(
     data: {
       title: input.title,
       amount: input.amount,
-      currency: input.currency,
+      currency:
+        input.currency ??
+        current?.currency ??
+        (
+          await tx.workspace.findUniqueOrThrow({
+            where: { id: ctx.workspaceId },
+            select: { currency: true },
+          })
+        ).currency,
       pipelineId: input.pipelineId,
       stageId: stage.id,
       companyId: input.companyId,
@@ -247,6 +256,7 @@ export async function updateDeal(ctx: Ctx, id: string, rawInput: unknown) {
       type: existing.stage.type,
       closedAt: existing.closedAt,
       ownerId: existing.ownerId,
+      currency: existing.currency,
       customFields: existing.customFields,
     });
     const updated = await tx.deal.update({ where: { id: existing.id }, data });
