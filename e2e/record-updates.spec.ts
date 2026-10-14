@@ -9,7 +9,13 @@ async function addField(page: Page, label: string, type = "TEXT") {
   await page.locator("#field-label").fill(label);
   await page.getByLabel("Type").selectOption(type);
   await page.getByRole("button", { name: "Add field" }).click();
-  await expect(page.getByRole("textbox", { name: "Label" }).last()).toHaveValue(label);
+  // The form clears itself once the field is saved; then the new field is listed.
+  await expect(page.locator("#field-label")).toHaveValue("");
+  await expect(
+    page
+      .getByRole("textbox", { name: "Label", exact: true })
+      .and(page.locator(`[value="${label}"]`)),
+  ).toHaveCount(1);
 }
 
 test.describe("record updates after settings change", () => {
