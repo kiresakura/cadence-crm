@@ -22,11 +22,15 @@ export function ListFilters({
   action,
   query,
   selects,
+  hidden = {},
+  search = true,
   searchPlaceholder = "Search…",
 }: {
   action: string;
   query?: string;
   selects: FilterSelect[];
+  hidden?: Record<string, string>;
+  search?: boolean;
   searchPlaceholder?: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -37,17 +41,24 @@ export function ListFilters({
       className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center"
       role="search"
     >
-      <div className="relative flex-1">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          name="q"
-          type="search"
-          defaultValue={query}
-          placeholder={searchPlaceholder}
-          aria-label="Search"
-          className="pl-8"
-        />
-      </div>
+      {Object.entries(hidden).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
+      {search ? (
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            name="q"
+            type="search"
+            defaultValue={query}
+            placeholder={searchPlaceholder}
+            aria-label="Search"
+            className="pl-8"
+          />
+        </div>
+      ) : (
+        <div className="flex-1" />
+      )}
       <div className="grid grid-cols-2 gap-2 sm:flex">
         {selects.map((select) => (
           <NativeSelect
