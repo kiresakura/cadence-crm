@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { countOf } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { mergeDuplicateGroupAction } from "../actions";
@@ -123,8 +124,9 @@ export function MergeGroup({
               <div>{contact.phone ?? "No phone"}</div>
               <div>{[contact.jobTitle, contact.company].filter(Boolean).join(" at ") || "—"}</div>
               <div>
-                Added {contact.created} · {contact.counts.activities} activities ·{" "}
-                {contact.counts.tasks} tasks · {contact.counts.deals} deals
+                Added {contact.created} ·{" "}
+                {countOf(contact.counts.activities, "activity", "activities")} ·{" "}
+                {countOf(contact.counts.tasks, "task")} · {countOf(contact.counts.deals, "deal")}
               </div>
             </div>
           </div>
