@@ -1,0 +1,41 @@
+# Local development databases (the app itself runs with `npm run dev`).
+#   docker compose -f docker-compose.dev.yml up -d
+name: cadence-crm-dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cadence
+      POSTGRES_PASSWORD: cadence
+      POSTGRES_DB: cadence
+    ports:
+      - "54329:5432"
+    volumes:
+      - dev-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cadence -d cadence"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  db-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cadence
+      POSTGRES_PASSWORD: cadence
+      POSTGRES_DB: cadence_test
+    ports:
+      - "54330:5432"
+    volumes:
+      - ./docker/postgres/init-test.sql:/docker-entrypoint-initdb.d/init-test.sql:ro
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cadence -d cadence_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  dev-db:
