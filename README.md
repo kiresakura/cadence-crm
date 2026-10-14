@@ -146,7 +146,7 @@ npm run screenshots    # regenerate docs/screenshots from the demo data
 
 - **146 Vitest tests** — unit tests for pure rules (permissions matrix, secret guard, stage transitions, custom field validation, CSV parsing and escaping, dashboard math, time zones) and integration tests that run the real services against PostgreSQL: cross-workspace isolation, all four roles, duplicate merge, stage rules, CSV import and export, dashboard figures, sessions and members.
 - **Line coverage of `src/server`: 93.6%** (the thin Next.js adapters in `src/server/next` are exercised by the Playwright suite instead).
-- **5 Playwright tests** — sign in → create contact → create deal → drag it to the next stage → dashboard forecast changes; lost-reason dialog; a viewer sees no edit controls and the API rejects their writes with 403; unauthenticated API calls get 401; registration.
+- **7 Playwright tests** — sign in → create contact → create deal → drag it to the next stage → dashboard forecast changes; the lost-reason dialog via the keyboard-friendly "Move to" menu; a viewer sees no edit controls and the API rejects their writes with 403 (exports still work); unauthenticated API calls get 401; registration; creating and switching workspaces; inviting a member who then signs in with the temporary password.
 
 CI runs lint, format check, typecheck, unit, integration (PostgreSQL service), build, E2E and a Docker build on every push.
 
