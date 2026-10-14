@@ -76,5 +76,9 @@
   "license": "MIT",
   "engines": {
     "node": ">=20"
+  },
+  "overrides": {
+    "mysql2": "^3.24.6",
+    "deepmerge-ts": "^8.0.2"
   }
 }
