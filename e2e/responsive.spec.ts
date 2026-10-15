@@ -98,8 +98,10 @@ test("a page number past the end shows the last page instead of an empty workspa
 }) => {
   await signIn(page, "owner@demo.local");
   await page.goto("/contacts?page=999");
-  await expect(page).toHaveURL(/\/contacts\?page=\d+$/);
-  expect(Number(new URL(page.url()).searchParams.get("page"))).toBeLessThan(999);
+  // The redirect to the last page arrives while the page streams, so wait for the URL to change.
+  await page.waitForURL(
+    (url) => url.pathname === "/contacts" && Number(url.searchParams.get("page")) < 999,
+  );
   await expect(page.getByText("No contacts yet")).toHaveCount(0);
   await expect(page.getByRole("table").getByRole("link").first()).toBeVisible();
 });
