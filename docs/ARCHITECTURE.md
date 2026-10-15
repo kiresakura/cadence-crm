@@ -154,17 +154,17 @@ Exports reuse the list filters and escape cells that a spreadsheet would treat a
 - `Deal.amount` is `Decimal(14,2)`; arithmetic uses `Prisma.Decimal`, never floating point. The dashboard aggregates only deals in the workspace's reporting currency.
 - `Deal.expectedCloseDate` is a calendar date (`@db.Date`) and is always formatted in UTC; timestamps are formatted in the user's time zone.
 - Custom field values are JSONB keyed by the definition's stable `key`. Deleting a definition leaves old values in place; they are ignored and dropped the next time the record is saved. Updates only validate values that change, so a select option removed later, a field made required later or an owner who left the workspace never blocks an unrelated edit; the edit form shows such a value as "Alpha (no longer an option)" and sends it back unchanged. Keys are read as own properties only, and labels never produce keys like `constructor`; labels without Latin letters get numbered keys (`field`, `field_2`, …).
-- Pickers for linked records (a deal's company and primary contact, a contact's company) search on the server, 20 matches at a time, and always include the current selection, so editing a record never drops a link because it sorts after the first thousand. Clearing a link takes an explicit **Clear**.
+- Pickers for linked records (a deal's company and primary contact, a contact's company) search on the server, 20 matches at a time, and include the current selection while the field shows it, so editing a record never drops a link because it sorts after the first thousand. Once other text is typed, the selection is listed only if it matches, and Enter picks the highlighted match (the first one by default); while a search is running or after it fails, the picker says so. Clearing a link takes an explicit **Clear**.
 - Removing a member hands their contacts, companies, deals and open tasks in that workspace to a member chosen in the dialog (the person removing them by default), in the same transaction, with the counts in the audit log.
 - Foreign keys from deals to pipelines and stages use `NO ACTION`; the service layer refuses to delete stages or pipelines that still hold deals.
 - `AuditLog.changes` stores `{ field: { from, to } }` with values normalised to JSON (dates as ISO strings, decimals as fixed strings).
 
 ## Testing strategy
 
-| Layer     | Tool                  | What it proves                                                                                                                               |
-| --------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Domain    | Vitest unit tests     | Rules in isolation: transitions, validation, parsing, escaping, maths, time zones, permission matrix, secret guard                           |
-| Services  | Vitest + PostgreSQL   | Real queries and transactions: tenancy, roles, merge, imports, exports, dashboard figures, sessions                                          |
-| Whole app | Playwright (Chromium) | Sign-in, invitations, forms, pickers, drag and drop, imports, CSP on every main page, axe checks, 375/768 px layouts, forms before hydration |
+| Layer     | Tool                  | What it proves                                                                                                                                                                              |
+| --------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domain    | Vitest unit tests     | Rules in isolation: transitions, validation, parsing, escaping, maths, time zones, permission matrix, secret guard                                                                          |
+| Services  | Vitest + PostgreSQL   | Real queries and transactions: tenancy, roles, merge, imports, exports, dashboard figures, sessions                                                                                         |
+| Whole app | Playwright (Chromium) | Sign-in, invitations, forms, pickers, drag and drop, keyboard moves, imports, CSP on every main page, axe checks (also open toasts and pickers), 375/768 px layouts, forms before hydration |
 
 Integration tests run against a dedicated database that is migrated and truncated once per run; each test file creates its own workspaces, so tests do not depend on each other.

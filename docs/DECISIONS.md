@@ -58,7 +58,7 @@ Short architecture decision records. Each one states the context, the decision a
 
 ## ADR-010: Native selects and server-validated forms
 
-**Decision.** Forms use native `<select>`, `<input type="date">` and checkboxes styled to match the Radix-based components, and submit `FormData` to Server Actions through a small `useActionForm` hook that keeps input after validation errors and shows field errors from the server. Forms post with `method="post"` so nothing is sent as a query string before hydration. Pickers for linked records (company, primary contact) are the exception: an ARIA combobox that searches on the server (20 matches, debounced) and always includes the current selection; clearing a link takes an explicit **Clear**.
+**Decision.** Forms use native `<select>`, `<input type="date">` and checkboxes styled to match the Radix-based components, and submit `FormData` to Server Actions through a small `useActionForm` hook that keeps input after validation errors and shows field errors from the server. Forms post with `method="post"` so nothing is sent as a query string before hydration. Pickers for linked records (company, primary contact) are the exception: an ARIA combobox that searches on the server (20 matches, debounced) and includes the current selection while the field shows it (once other text is typed, only if it matches); clearing a link takes an explicit **Clear**.
 **Consequences.** Accessible and keyboard friendly by default, simple to test, and one validation source (Zod on the server). A native select with a fixed option list used to drop links that sorted past its last option.
 
 ## ADR-011: Kanban with dnd-kit, optimistic updates and a keyboard alternative
