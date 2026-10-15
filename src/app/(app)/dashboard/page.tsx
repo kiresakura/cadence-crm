@@ -1,6 +1,7 @@
 import { AlarmClock, CalendarCheck2, CircleDollarSign, Scale, Trophy } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Fragment } from "react";
 
 import { PageHeader, Section } from "@/components/page";
 import { Timeline } from "@/components/records/timeline";
@@ -13,6 +14,20 @@ import { getDashboard } from "@/server/services/dashboard";
 import { PipelineByStageChart, WonByMonthChart } from "./charts";
 
 export const metadata: Metadata = { title: "Dashboard" };
+
+/** A long amount may wrap after its thousands separators instead of widening its card. */
+function wrappable(value: string) {
+  const groups = value.split(",");
+  return groups.map((group, index) =>
+    index < groups.length - 1 ? (
+      <Fragment key={index}>
+        {group},<wbr />
+      </Fragment>
+    ) : (
+      group
+    ),
+  );
+}
 
 function Metric({
   label,
@@ -38,7 +53,7 @@ function Metric({
         <Icon className={cn("size-4", tone === "warning" && "text-destructive")} />
       </div>
       <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums" data-testid={testId}>
-        {value}
+        {wrappable(value)}
       </p>
       <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
     </>

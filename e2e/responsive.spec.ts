@@ -66,6 +66,33 @@ test("a dashboard with many pipelines still fits a phone screen", async ({ page 
   await expectNoHorizontalScroll(page, "/dashboard");
 });
 
+test("the largest amounts a deal can hold still fit the dashboard", async ({ page }) => {
+  const email = `big.amounts.${Date.now().toString(36)}@example.com`;
+  await registerWorkspace(page, { email, workspaceName: "Big Amounts" });
+  const { workspaceId, userId } = await workspaceOf(email);
+  await withDb(async (client) => {
+    const stage = await client.query<{ id: string; pipelineId: string }>(
+      `SELECT id, "pipelineId" FROM "Stage" WHERE "workspaceId" = $1 ORDER BY position LIMIT 1`,
+      [workspaceId],
+    );
+    // Two deals at the Decimal(14,2) maximum, closing today: every amount on the dashboard
+    // runs to 13 digits.
+    await client.query(
+      `INSERT INTO "Deal" (id, "workspaceId", title, amount, currency, "pipelineId", "stageId",
+                           "ownerId", "expectedCloseDate", "updatedAt")
+       SELECT gen_random_uuid()::text, $1, 'Largest deal ' || g, 999999999999.99, 'USD', $2, $3,
+              $4, current_date, now()
+         FROM generate_series(1, 2) g`,
+      [workspaceId, stage.rows[0]!.pipelineId, stage.rows[0]!.id, userId],
+    );
+  });
+  for (const width of [375, 768, 1024]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectNoHorizontalScroll(page, "/dashboard");
+  }
+  await expect(page.getByTestId("metric-open-pipeline")).toHaveText("$1,999,999,999,999.98");
+});
+
 test("a page number past the end shows the last page instead of an empty workspace", async ({
   page,
 }) => {
