@@ -3,10 +3,10 @@ import type { Role } from "@/generated/prisma/enums";
 import { recordAudit } from "../audit";
 import { db, type DbClient } from "../db";
 import { ConflictError, ForbiddenError, ValidationError, parseInput } from "../errors";
-import { assertCan, type Ctx } from "../permissions";
+import { assertCan, can, type Ctx } from "../permissions";
 import { changeRoleSchema, removeMemberSchema } from "../validation/schemas";
 import { assertMemberRef, notFoundUnless } from "./guards";
-import { revokeInvitationsBy } from "./invitations";
+import { listPendingInvitations, revokeInvitationsBy } from "./invitations";
 
 export async function listMembers(ctx: Ctx) {
   assertCan(ctx, "records:read");
@@ -15,6 +15,17 @@ export async function listMembers(ctx: Ctx) {
     include: { user: { select: { id: true, name: true, email: true } } },
     orderBy: [{ role: "asc" }, { createdAt: "asc" }],
   });
+}
+
+/**
+ * What the members settings page lists, or null for someone who cannot manage members: the
+ * settings layout already turns them away, and the page still renders alongside it, so it must
+ * not ask for data they are not allowed to see (that would log a permission error every visit).
+ */
+export async function membersSettings(ctx: Ctx) {
+  if (!can(ctx.role, "members:manage")) return null;
+  const [members, invitations] = await Promise.all([listMembers(ctx), listPendingInvitations(ctx)]);
+  return { members, invitations };
 }
 
 /** Members for owner/assignee pickers. */
