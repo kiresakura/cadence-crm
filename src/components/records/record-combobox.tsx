@@ -216,7 +216,8 @@ export function RecordCombobox({
             aria-selected={option.id === selectedId}
             className={cn(
               "flex cursor-pointer items-baseline justify-between gap-3 rounded-md px-2 py-1.5",
-              index === active && "bg-muted",
+              // Outlined as well as shaded: the shade alone is too faint against the list.
+              index === active && "bg-muted ring-1 ring-primary ring-inset",
               option.id === selectedId && "font-medium",
             )}
             onMouseEnter={() => setActive(index)}

@@ -14,7 +14,7 @@ import {
 } from "@dnd-kit/core";
 import { CalendarDays, GripVertical, MoveRight } from "lucide-react";
 import Link from "next/link";
-import { useOptimistic, useState, useTransition } from "react";
+import { useCallback, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { moveDealAction } from "@/app/(app)/deals/actions";
@@ -90,6 +90,10 @@ export function DealBoard({
   const [, startTransition] = useTransition();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [pendingLoss, setPendingLoss] = useState<PendingLoss | null>(null);
+  // A card moved from its "Move to" menu lands in another column as a new element; its menu
+  // button there takes the focus back so keyboard users carry on from the card.
+  const [refocusId, setRefocusId] = useState<string | null>(null);
+  const clearRefocus = useCallback(() => setRefocusId(null), []);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor),
@@ -111,6 +115,11 @@ export function DealBoard({
         toast.error(`Could not move "${deal.title}": ${result.error}`);
       }
     });
+  }
+
+  function moveFromMenu(deal: BoardDeal, stage: BoardStage) {
+    setRefocusId(deal.id);
+    move(deal, stage);
   }
 
   function onDragStart(event: DragStartEvent) {
@@ -141,7 +150,9 @@ export function DealBoard({
               stages={stages}
               currency={currency}
               canWrite={canWrite}
-              onMove={move}
+              onMove={moveFromMenu}
+              refocusId={refocusId}
+              onRefocused={clearRefocus}
             />
           ))}
         </div>
@@ -152,7 +163,10 @@ export function DealBoard({
 
       <LostReasonDialog
         pending={pendingLoss}
-        onCancel={() => setPendingLoss(null)}
+        onCancel={() => {
+          setPendingLoss(null);
+          setRefocusId(null);
+        }}
         onConfirm={(reason) => {
           if (pendingLoss) move(pendingLoss.deal, pendingLoss.stage, reason);
           setPendingLoss(null);
@@ -169,6 +183,8 @@ function Column({
   currency,
   canWrite,
   onMove,
+  refocusId,
+  onRefocused,
 }: {
   stage: BoardStage;
   deals: BoardDeal[];
@@ -176,6 +192,8 @@ function Column({
   currency: string;
   canWrite: boolean;
   onMove: (deal: BoardDeal, stage: BoardStage) => void;
+  refocusId: string | null;
+  onRefocused: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id, disabled: !canWrite });
   const total = totalInCurrency(deals, currency);
@@ -227,6 +245,8 @@ function Column({
             stages={stages}
             canWrite={canWrite}
             onMove={onMove}
+            refocus={deal.id === refocusId}
+            onRefocused={onRefocused}
           />
         ))}
         {deals.length === 0 ? (
@@ -244,16 +264,30 @@ function DraggableDeal({
   stages,
   canWrite,
   onMove,
+  refocus,
+  onRefocused,
 }: {
   deal: BoardDeal;
   stages: BoardStage[];
   canWrite: boolean;
   onMove: (deal: BoardDeal, stage: BoardStage) => void;
+  refocus: boolean;
+  onRefocused: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: deal.id,
     disabled: !canWrite,
   });
+  const moveButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!refocus) return;
+    // Runs after the closed menu (or lost-reason dialog) has tried to restore focus itself.
+    const timer = setTimeout(() => {
+      moveButton.current?.focus();
+      onRefocused();
+    });
+    return () => clearTimeout(timer);
+  }, [refocus, onRefocused]);
   return (
     <div ref={setNodeRef} className={cn(isDragging && "opacity-40")}>
       <DealCard
@@ -276,6 +310,7 @@ function DraggableDeal({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
+                  ref={moveButton}
                   variant="ghost"
                   size="icon-xs"
                   aria-label={`Move ${deal.title} to another stage`}
