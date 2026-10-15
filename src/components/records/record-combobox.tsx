@@ -199,7 +199,15 @@ export function RecordCombobox({
           >
             <span className="truncate">{option.label}</span>
             {option.detail ? (
-              <span className="truncate text-xs text-muted-foreground">{option.detail}</span>
+              <span
+                className={cn(
+                  "truncate text-xs",
+                  // Muted gray on the highlight's gray would fall below 4.5:1.
+                  index === active ? "text-foreground/70" : "text-muted-foreground",
+                )}
+              >
+                {option.detail}
+              </span>
             ) : null}
           </li>
         ))}

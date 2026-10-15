@@ -132,3 +132,14 @@
     @apply font-sans;
   }
 }
+
+/*
+ * Sonner's rich toast colors, darkened so toast text keeps at least 4.5:1 against its tinted
+ * background. Unlayered, and more specific than the stylesheet the toaster injects itself.
+ */
+:root [data-sonner-toaster][data-sonner-theme="light"] {
+  --success-text: hsl(140, 100%, 24%);
+  --info-text: hsl(210, 92%, 40%);
+  --warning-text: hsl(31, 92%, 32%);
+  --error-text: hsl(360, 100%, 40%);
+}
