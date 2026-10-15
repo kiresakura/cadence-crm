@@ -50,7 +50,7 @@ test.describe("contact import", () => {
 
     await page.getByLabel("CSV file").setInputFiles(csvFile("big.csv", text));
     await expect(page.getByTestId("import-error")).toHaveText(
-      "Import at most 5000 rows at a time.",
+      "Import at most 5,000 rows at a time.",
     );
     await expect(page.getByText("Something went wrong")).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "1. Choose a CSV file" })).toBeVisible();

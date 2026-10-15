@@ -1,9 +1,10 @@
 import Papa from "papaparse";
 
+import { IMPORT_ROW_LIMIT, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS } from "@/lib/import-limits";
+
 import { ValidationError } from "../errors";
 
-export const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
-export const MAX_IMPORT_ROWS = 5000;
+export { MAX_IMPORT_BYTES, MAX_IMPORT_ROWS };
 
 export const CONTACT_IMPORT_FIELDS = [
   {
@@ -134,7 +135,7 @@ export function parseCsv(text: string): ParsedCsv {
     rowNumbers.push(index + 1);
   });
   if (rows.length > MAX_IMPORT_ROWS) {
-    throw new ValidationError(`Import at most ${MAX_IMPORT_ROWS} rows at a time.`);
+    throw new ValidationError(`Import at most ${IMPORT_ROW_LIMIT} at a time.`);
   }
   return { headers, rows, rowNumbers };
 }

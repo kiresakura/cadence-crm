@@ -213,7 +213,9 @@ describe("importing a Chinese spreadsheet", () => {
     const ws = await createTestWorkspace();
     const rows = Array.from({ length: 16_000 }, (_, i) => `Person ${i},p${i}@example.com`);
     const csv = `Name,Email\n${rows.join("\n")}`;
-    await expect(previewContactImport(ws.member, csv)).rejects.toThrow(/at most 5000 rows/);
+    await expect(previewContactImport(ws.member, csv)).rejects.toThrow(
+      "Import at most 5,000 rows at a time.",
+    );
   });
 });
 

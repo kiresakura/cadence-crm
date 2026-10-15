@@ -28,9 +28,9 @@ describe("parseCsv", () => {
     expect(() => parseCsv("Email,Email\na@example.com,b@example.com")).toThrow(/duplicate/);
   });
 
-  it("caps the number of rows", () => {
+  it("caps the number of rows and states the cap the way the upload screen does", () => {
     const text = `Email\n${Array.from({ length: MAX_IMPORT_ROWS + 1 }, (_, i) => `u${i}@example.com`).join("\n")}`;
-    expect(() => parseCsv(text)).toThrow(/at most/);
+    expect(() => parseCsv(text)).toThrow("Import at most 5,000 rows at a time.");
   });
 });
 

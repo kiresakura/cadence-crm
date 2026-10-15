@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { fullName } from "@/lib/format";
+import { IMPORT_ROW_LIMIT, IMPORT_SIZE_LIMIT, MAX_IMPORT_BYTES } from "@/lib/import-limits";
 
 import { importContactsAction, previewImportAction } from "../actions";
 
@@ -41,9 +42,6 @@ interface Analysis {
   summary: { total: number; ready: number; duplicates: number; errors: number };
   unknownTags: string[];
 }
-
-/** Same limit as the server; checked before uploading so the wizard can explain it. */
-const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
 const SAMPLE = `First name,Last name,Email,Phone,Company,Lifecycle stage,Tags
 Avery,Stone,avery.stone@example.com,+1 555 0100,Larkspur & Vane Supply,prospect,
@@ -96,8 +94,8 @@ export function ImportWizard({ fields }: { fields: Array<{ key: string; label: s
     // Clearing the input lets the same file be chosen again after fixing it.
     input.value = "";
     if (!file) return;
-    if (file.size > MAX_FILE_BYTES) {
-      fail(`"${file.name}" is larger than 2 MB. Split it into smaller files.`);
+    if (file.size > MAX_IMPORT_BYTES) {
+      fail(`"${file.name}" is larger than ${IMPORT_SIZE_LIMIT}. Split it into smaller files.`);
       return;
     }
     preview(file);
@@ -133,7 +131,8 @@ export function ImportWizard({ fields }: { fields: Array<{ key: string; label: s
       <section className="rounded-xl border bg-card p-4">
         <h2 className="text-sm font-semibold">1. Choose a CSV file</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          UTF-8, up to 2 MB and 5,000 rows. The first row must contain column names.
+          UTF-8, up to {IMPORT_SIZE_LIMIT} and {IMPORT_ROW_LIMIT}. The first row must contain column
+          names.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-medium hover:bg-muted has-focus-visible:ring-3 has-focus-visible:ring-ring/50">
