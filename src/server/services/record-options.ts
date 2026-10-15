@@ -40,10 +40,19 @@ function selectedIdOf(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 && value.length <= 64 ? value : null;
 }
 
-/** Puts the selected record first when the search did not already return it. */
-function withSelected(options: RecordOption[], selected: RecordOption | null): RecordOption[] {
+/**
+ * Adds the selected record when the search did not already return it, so the field's value can
+ * be seen and chosen again: first while nothing is typed, after the matches when the typed text
+ * matches it too. A selection the text does not match is left out (`selected` is null), so it is
+ * never offered in place of what was typed.
+ */
+function withSelected(
+  options: RecordOption[],
+  selected: RecordOption | null,
+  filtered: boolean,
+): RecordOption[] {
   if (!selected || options.some((option) => option.id === selected.id)) return options;
-  return [selected, ...options];
+  return filtered ? [...options, selected] : [selected, ...options];
 }
 
 export async function contactOption(ctx: Ctx, id: unknown): Promise<RecordOption | null> {
@@ -57,7 +66,7 @@ export async function contactOption(ctx: Ctx, id: unknown): Promise<RecordOption
   return contact ? contactToOption(contact) : null;
 }
 
-/** Contacts matching every search term, plus the currently selected one. */
+/** Contacts matching every search term, plus the selected one (see `withSelected`). */
 export async function searchContactOptions(
   ctx: Ctx,
   query: unknown,
@@ -71,6 +80,7 @@ export async function searchContactOptions(
       { email: { contains: term, mode: "insensitive" } },
     ],
   }));
+  const selectedContactId = selectedIdOf(selectedId);
   const [contacts, selected] = await Promise.all([
     db.contact.findMany({
       where: { workspaceId: ctx.workspaceId, AND: and },
@@ -78,9 +88,18 @@ export async function searchContactOptions(
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
       take: OPTION_LIMIT,
     }),
-    contactOption(ctx, selectedId),
+    selectedContactId
+      ? db.contact.findFirst({
+          where: { id: selectedContactId, workspaceId: ctx.workspaceId, AND: and },
+          select: contactSelect,
+        })
+      : null,
   ]);
-  return withSelected(contacts.map(contactToOption), selected);
+  return withSelected(
+    contacts.map(contactToOption),
+    selected ? contactToOption(selected) : null,
+    and.length > 0,
+  );
 }
 
 export async function companyOption(ctx: Ctx, id: unknown): Promise<RecordOption | null> {
@@ -94,7 +113,7 @@ export async function companyOption(ctx: Ctx, id: unknown): Promise<RecordOption
   return company ? { id: company.id, label: company.name, detail: company.domain } : null;
 }
 
-/** Companies matching every search term, plus the currently selected one. */
+/** Companies matching every search term, plus the selected one (see `withSelected`). */
 export async function searchCompanyOptions(
   ctx: Ctx,
   query: unknown,
@@ -107,17 +126,30 @@ export async function searchCompanyOptions(
       { domain: { contains: term, mode: "insensitive" } },
     ],
   }));
+  const selectedCompanyId = selectedIdOf(selectedId);
+  const select = { id: true, name: true, domain: true } as const;
   const [companies, selected] = await Promise.all([
     db.company.findMany({
       where: { workspaceId: ctx.workspaceId, AND: and },
-      select: { id: true, name: true, domain: true },
+      select,
       orderBy: [{ name: "asc" }, { id: "asc" }],
       take: OPTION_LIMIT,
     }),
-    companyOption(ctx, selectedId),
+    selectedCompanyId
+      ? db.company.findFirst({
+          where: { id: selectedCompanyId, workspaceId: ctx.workspaceId, AND: and },
+          select,
+        })
+      : null,
   ]);
+  const toOption = (company: { id: string; name: string; domain: string | null }) => ({
+    id: company.id,
+    label: company.name,
+    detail: company.domain,
+  });
   return withSelected(
-    companies.map((company) => ({ id: company.id, label: company.name, detail: company.domain })),
-    selected,
+    companies.map(toOption),
+    selected ? toOption(selected) : null,
+    and.length > 0,
   );
 }

@@ -20,8 +20,9 @@ const DEBOUNCE_MS = 200;
  * Picks one record with a server-side search (ARIA 1.2 editable combobox with a listbox popup).
  *
  * The selection only changes when an option is chosen or "Clear" is pressed; typing, leaving
- * the field or pressing Escape never clears it. The server always returns the selected record
- * among the options, so it can be seen and re-chosen however large the workspace is.
+ * the field or pressing Escape never clears it. While the field shows the selection, the server
+ * returns the selected record among the options, so it can be seen and re-chosen however large
+ * the workspace is; once other text is typed, it is listed only if it matches that text.
  */
 export function RecordCombobox({
   id,
@@ -70,7 +71,9 @@ export function RecordCombobox({
       if (result.ok) {
         setError(null);
         setOptions(result.data);
-        const current = result.data.findIndex((option) => option.id === selectedId);
+        // Highlight the selection while the field shows it, otherwise the first match, so Enter
+        // after typing picks what was typed rather than the current value.
+        const current = query ? -1 : result.data.findIndex((option) => option.id === selectedId);
         setActive(current >= 0 ? current : result.data.length > 0 ? 0 : -1);
       } else {
         setError(result.error);
@@ -175,6 +178,7 @@ export function RecordCombobox({
         role="listbox"
         aria-label={label}
         hidden={!open}
+        aria-busy={loading || optionsQuery !== query}
         className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border bg-popover p-1 text-sm shadow-md"
         // Keep focus in the input when the list (or its scrollbar) is pressed.
         onMouseDown={(event) => event.preventDefault()}

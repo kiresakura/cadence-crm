@@ -75,17 +75,30 @@ describe("record pickers with server-side search", () => {
     ]);
   });
 
-  it("always includes the selected record, wherever it sorts", async () => {
+  it("always includes the selected record while the field shows it, wherever it sorts", async () => {
     const options = await searchContactOptions(ws.viewer, "", lastContactId);
     expect(options.map((option) => option.id)).toContain(lastContactId);
     expect(options.length).toBeLessThanOrEqual(OPTION_LIMIT + 1);
 
-    const unrelated = await searchContactOptions(ws.viewer, "filler 0001", lastContactId);
-    expect(unrelated.map((option) => option.id)).toContain(lastContactId);
-
     const companies = await searchCompanyOptions(ws.viewer, "", lastCompanyId);
     expect(companies.map((option) => option.id)).toContain(lastCompanyId);
     expect(companies.length).toBeLessThanOrEqual(OPTION_LIMIT + 1);
+  });
+
+  it("lists the selected record for typed text only when it matches, after the matches", async () => {
+    const unrelated = await searchContactOptions(ws.viewer, "filler 0001", lastContactId);
+    expect(unrelated.map((option) => option.label)).toEqual(["Person Filler 0001"]);
+    const unrelatedCompanies = await searchCompanyOptions(ws.viewer, "company 0001", lastCompanyId);
+    expect(unrelatedCompanies.map((option) => option.label)).toEqual(["Company 0001"]);
+
+    // It matches but sorts after the first 20 matches: still listed, but not ahead of them.
+    const matching = await searchContactOptions(ws.viewer, "filler", lastContactId);
+    expect(matching).toHaveLength(OPTION_LIMIT + 1);
+    expect(matching[0]).toMatchObject({ label: "Person Filler 0001" });
+    expect(matching.at(-1)).toMatchObject({ id: lastContactId });
+    const matchingCompanies = await searchCompanyOptions(ws.viewer, "company", lastCompanyId);
+    expect(matchingCompanies[0]).toMatchObject({ label: "Company 0001" });
+    expect(matchingCompanies.at(-1)).toMatchObject({ id: lastCompanyId });
   });
 
   it("never leaks a selected id from another workspace", async () => {
