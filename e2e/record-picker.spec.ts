@@ -84,8 +84,9 @@ async function typeAndWait(page: Page, name: string, text: string) {
       (response.request().postData() ?? "").includes(JSON.stringify(text)),
   );
   await field.fill(text);
-  await (await results).finished();
-  await expect(listbox).not.toHaveAttribute("aria-busy", "true");
+  await results;
+  // Busy until the results for the current text are the ones listed.
+  await expect(listbox).toHaveAttribute("aria-busy", "false");
   await expect(listbox.getByRole("option").first()).toBeVisible();
   return { field, listbox };
 }
@@ -201,5 +202,59 @@ test.describe("record pickers that already have a value", () => {
       companyId: fixture.betaId,
       primaryContactId: fixture.beaId,
     });
+  });
+
+  test("a search that fails says so and can be tried again", async ({ page }) => {
+    await page.goto(`/deals/${fixture.dealId}/edit`);
+    const company = page.getByRole("combobox", { name: "Company" });
+    const listbox = page.getByRole("listbox", { name: "Company" });
+    await company.click();
+    await expect(listbox.getByRole("option").first()).toBeVisible();
+
+    // The search for "beta" never reaches the server until the connection is back.
+    let offline = true;
+    await page.route(`**/deals/${fixture.dealId}/edit`, (route) =>
+      offline && (route.request().postData() ?? "").includes('"beta"')
+        ? route.abort("internetdisconnected")
+        : route.continue(),
+    );
+    await company.fill("beta");
+    await expect(listbox).toContainText("Search failed. Press Enter to try again.");
+    await expect(listbox).not.toHaveAttribute("aria-busy", "true");
+
+    offline = false;
+    await company.press("Enter");
+    await expect(listbox.getByRole("option")).toHaveText(["Beta New Co"]);
+    await company.press("Enter");
+    await expect(company).toHaveValue("Beta New Co");
+  });
+
+  test("a slow search shows that newer results are on their way", async ({ page }) => {
+    await page.goto(`/deals/${fixture.dealId}/edit`);
+    const company = page.getByRole("combobox", { name: "Company" });
+    const listbox = page.getByRole("listbox", { name: "Company" });
+    const searching = page.getByRole("status").filter({ hasText: "Searching…" });
+    await company.click();
+    await expect(listbox.getByRole("option")).toHaveText(["Alpha Old Co", "Beta New Co"]);
+    await expect(searching).toHaveCount(0);
+
+    await page.route(`**/deals/${fixture.dealId}/edit`, async (route) => {
+      if ((route.request().postData() ?? "").includes('"beta"')) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+      await route.continue();
+    });
+    await company.fill("beta");
+    // The earlier results stay listed while the newer ones load, and Enter waits for them.
+    await expect(searching).toHaveCount(1);
+    await expect(listbox).toHaveAttribute("aria-busy", "true");
+    await expect(listbox.getByRole("option")).toHaveText(["Alpha Old Co", "Beta New Co"]);
+    await company.press("Enter");
+    await expect(company).toHaveValue("beta");
+
+    await expect(listbox.getByRole("option")).toHaveText(["Beta New Co"]);
+    await expect(searching).toHaveCount(0);
+    await company.press("Enter");
+    await expect(company).toHaveValue("Beta New Co");
   });
 });

@@ -15,6 +15,7 @@ export interface RecordOption {
 }
 
 const DEBOUNCE_MS = 200;
+const SEARCH_FAILED = "Search failed. Press Enter to try again.";
 
 /**
  * Picks one record with a server-side search (ARIA 1.2 editable combobox with a listbox popup).
@@ -54,6 +55,8 @@ export function RecordCombobox({
   const [active, setActive] = useState(-1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Bumped to repeat a search that failed.
+  const [attempt, setAttempt] = useState(0);
 
   // While the field shows the current selection, list the first records instead of filtering.
   const query = selected && text === selected.label ? "" : text.trim();
@@ -64,7 +67,11 @@ export function RecordCombobox({
     let cancelled = false;
     const timer = setTimeout(async () => {
       setLoading(true);
-      const result = await search(query, selectedId);
+      // A request that never gets an answer (offline, server unreachable) ends the search too.
+      const result = await search(query, selectedId).catch((): ActionResult<RecordOption[]> => ({
+        ok: false,
+        error: SEARCH_FAILED,
+      }));
       if (cancelled) return;
       setLoading(false);
       setOptionsQuery(query);
@@ -85,7 +92,7 @@ export function RecordCombobox({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [open, query, selectedId, search]);
+  }, [open, query, selectedId, search, attempt]);
 
   function close() {
     setOpen(false);
@@ -123,6 +130,10 @@ export function RecordCombobox({
       // results for the current text have arrived.
       event.preventDefault();
       if (loading || optionsQuery !== query) return;
+      if (error) {
+        setAttempt((count) => count + 1);
+        return;
+      }
       const option = options[active];
       if (option) choose(option);
     } else if (event.key === "Escape") {
@@ -134,33 +145,44 @@ export function RecordCombobox({
   }
 
   const optionId = (index: number) => `${listId}-option-${index}`;
+  // Earlier results stay listed while newer ones load; say so instead of ignoring Enter silently.
+  const refreshing = open && loading && options.length > 0;
 
   return (
     <div className="relative">
       <input type="hidden" name={name} value={selectedId ?? ""} />
       <div className="flex items-center gap-1">
-        <Input
-          ref={inputRef}
-          id={id}
-          role="combobox"
-          aria-expanded={open}
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-activedescendant={open && active >= 0 ? optionId(active) : undefined}
-          aria-invalid={invalid || undefined}
-          aria-describedby={describedBy}
-          autoComplete="off"
-          placeholder={placeholder}
-          value={text}
-          onChange={(event) => {
-            setText(event.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onClick={() => setOpen(true)}
-          onBlur={close}
-          onKeyDown={onKeyDown}
-        />
+        <div className="relative min-w-0 flex-1">
+          <Input
+            ref={inputRef}
+            id={id}
+            role="combobox"
+            aria-expanded={open}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={open && active >= 0 ? optionId(active) : undefined}
+            aria-invalid={invalid || undefined}
+            aria-describedby={describedBy}
+            autoComplete="off"
+            placeholder={placeholder}
+            value={text}
+            onChange={(event) => {
+              setText(event.target.value);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            onClick={() => setOpen(true)}
+            onBlur={close}
+            onKeyDown={onKeyDown}
+            className="pr-8"
+          />
+          {refreshing ? (
+            <Loader2
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 animate-spin text-muted-foreground"
+            />
+          ) : null}
+        </div>
         {selected ? (
           <Button
             type="button"
@@ -173,6 +195,9 @@ export function RecordCombobox({
           </Button>
         ) : null}
       </div>
+      <span role="status" className="sr-only">
+        {open && loading ? "Searching…" : ""}
+      </span>
       <ul
         id={listId}
         role="listbox"
