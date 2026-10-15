@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { signIn } from "./helpers";
 
@@ -14,30 +14,43 @@ const SAMPLE_CSV = [
   "Robin,Quell,robin.quell@example.com,,,unknown-stage,",
 ].join("\n");
 
+/**
+ * Captures once the sidebar marks the section the page belongs to. Animations are settled
+ * first, so a highlight still fading over from the previous page is never captured, and the
+ * pointer is moved out of the way so no hover state or chart tooltip shows.
+ */
+async function capture(page: Page, name: string, section: string) {
+  await expect(
+    page.getByRole("navigation", { name: "Main" }).locator('[aria-current="page"]'),
+  ).toHaveText(section);
+  await page.mouse.move(0, 0);
+  await page.screenshot({ path: `${dir}/${name}.png`, animations: "disabled" });
+}
+
 test("capture README screenshots", async ({ page }) => {
   await signIn(page, "owner@demo.local");
   await expect(page.getByTestId("metric-open-pipeline")).toBeVisible();
   await page.waitForTimeout(1500);
-  await page.screenshot({ path: `${dir}/dashboard.png` });
+  await capture(page, "dashboard", "Dashboard");
 
   await page.goto("/deals");
   await expect(page.getByTestId("board-column").first()).toBeVisible();
-  await page.screenshot({ path: `${dir}/deals-board.png` });
+  await capture(page, "deals-board", "Deals");
 
   await page.goto("/contacts");
   await expect(page.getByRole("table")).toBeVisible();
-  await page.screenshot({ path: `${dir}/contacts-list.png` });
+  await capture(page, "contacts-list", "Contacts");
 
   await page.goto("/deals?view=list&status=open&sort=-amount");
   await page.getByRole("row").nth(1).getByRole("link").first().click();
   await expect(page).toHaveURL(/\/deals\/[^/]+$/);
-  await page.screenshot({ path: `${dir}/deal-detail.png` });
+  await capture(page, "deal-detail", "Deals");
 
   // The deal's primary contact has activities, deals and tasks to show.
   await page.locator("dd a[href^='/contacts/']").first().click();
   await expect(page).toHaveURL(/\/contacts\/[^/]+$/);
   await expect(page.getByRole("heading", { name: "Timeline" })).toBeVisible();
-  await page.screenshot({ path: `${dir}/contact-detail.png` });
+  await capture(page, "contact-detail", "Contacts");
 
   await page.goto("/contacts/import");
   await page.getByLabel("CSV file").setInputFiles({
@@ -46,13 +59,13 @@ test("capture README screenshots", async ({ page }) => {
     buffer: Buffer.from(SAMPLE_CSV),
   });
   await expect(page.getByText("3. Preview")).toBeVisible();
-  await page.screenshot({ path: `${dir}/import.png` });
+  await capture(page, "import", "Contacts");
 
   await page.goto("/settings/pipelines");
   await expect(page.getByRole("region", { name: "Sales pipeline" })).toBeVisible();
-  await page.screenshot({ path: `${dir}/settings-pipelines.png` });
+  await capture(page, "settings-pipelines", "Settings");
 
   await page.goto("/contacts/duplicates");
   await expect(page.getByRole("region", { name: "Duplicate group" }).first()).toBeVisible();
-  await page.screenshot({ path: `${dir}/duplicates.png` });
+  await capture(page, "duplicates", "Contacts");
 });
